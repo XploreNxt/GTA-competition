@@ -12,7 +12,19 @@
     <canvas id="hud-canvas"></canvas>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Local Three.js + addons (offline-safe) -->
+  <script src="js/vendor/three.min.js"></script>
+  <script src="js/vendor/CopyShader.js"></script>
+  <script src="js/vendor/LuminosityHighPassShader.js"></script>
+  <script src="js/vendor/EffectComposer.js"></script>
+  <script src="js/vendor/RenderPass.js"></script>
+  <script src="js/vendor/ShaderPass.js"></script>
+  <script src="js/vendor/UnrealBloomPass.js"></script>
+  <script src="js/vendor/FilmPass.js"></script>
+  <script src="js/vendor/FXAAShader.js"></script>
+  <script src="js/vendor/Sky.js"></script>
+
+  <!-- Game code -->
   <script src="js/Input.js"></script>
   <script src="js/HUD.js"></script>
   <script src="js/main.js"></script>
