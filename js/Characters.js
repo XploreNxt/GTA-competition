@@ -30,6 +30,7 @@ const Characters = {
       loader.load(this._url("Model", "characterMedium", "fbx"),
         (obj) => {
           try {
+            console.log("FBX model loaded:", obj);
             this._prepare(obj);
             step(0.5, "Loading character skins...");
             Promise.all([
@@ -37,14 +38,25 @@ const Characters = {
               this._loadAnims(),
             ]).then(() => {
               this.ready = true;
+              console.log("Character ready, skins:", this.skins.length);
               resolve();
-            }, reject);
+            }, (e) => {
+              console.warn("Skins/anims failed:", e);
+              this.ready = true; // still ready even without skins
+              resolve();
+            });
           } catch (e) {
+            console.error("Character prepare failed:", e);
             reject(e);
           }
         },
-        (xhr) => step(0.1 + 0.35 * (xhr.loaded / xhr.total), "Loading character model..."),
-        (err) => reject(err)
+        (xhr) => {
+          if (xhr.total > 0) step(0.1 + 0.35 * (xhr.loaded / xhr.total), "Loading character model...");
+        },
+        (err) => {
+          console.error("FBX load error:", err);
+          reject(err);
+        }
       );
     });
   },
@@ -53,12 +65,14 @@ const Characters = {
   _prepare(obj) {
     const box = new THREE.Box3().setFromObject(obj);
     const h = box.max.y - box.min.y;
+    console.log("Model bounding box:", box.min.y, box.max.y, "height:", h);
     if (h > 0.01) obj.scale.setScalar(this._targetHeight / h);
     obj.updateMatrixWorld(true);
     const box2 = new THREE.Box3().setFromObject(obj);
     obj.position.y = -box2.min.y;
     obj.updateMatrixWorld(true);
     this.model = obj;
+    console.log("Model prepared, final scale:", obj.scale.x);
   },
 
   _loadSkins() {
@@ -134,7 +148,14 @@ const Characters = {
 
         const mats = Array.isArray(o.material) ? o.material : [o.material];
         for (const m of mats) {
-          m.map = this.skins[skinIndex].tex;
+          // Apply skin texture if available, otherwise use default material
+          if (this.skins.length > skinIndex && this.skins[skinIndex]) {
+            m.map = this.skins[skinIndex].tex;
+          } else {
+            // Default visible material
+            m.map = null;
+            m.color.set(0x4488cc);
+          }
           m.needsUpdate = true;
         }
       }
