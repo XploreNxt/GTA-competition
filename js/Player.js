@@ -27,64 +27,73 @@ const Player = {
   _jumpHeld: false,
 
   spawn(x, z) {
-    // Use FBX character if loaded, otherwise fallback to simple mesh
-    if (Characters.ready && Characters.model) {
-      const g = Characters.make(0);
-      g.position.set(x, 0, z);
-      Characters.track(g);
-      Characters.playAnim(g, "idle");
-      this.person = g;
-    } else {
-      // Fallback: visible humanoid character
-      const g = new THREE.Group();
+    let g = null;
 
-      // Materials
+    // Try FBX character first
+    try {
+      if (Characters.ready && Characters.model) {
+        g = Characters.make(0);
+        g.position.set(x, 0, z);
+        Characters.track(g);
+        Characters.playAnim(g, "idle");
+      }
+    } catch (e) {
+      console.warn("FBX character failed, using fallback:", e);
+    }
+
+    // Fallback: build a visible humanoid from primitives
+    if (!g) {
+      g = new THREE.Group();
+
       const skinMat = new THREE.MeshLambertMaterial({ color: 0xffcc99 });
       const shirtMat = new THREE.MeshLambertMaterial({ color: 0x3366aa });
       const pantsMat = new THREE.MeshLambertMaterial({ color: 0x333355 });
       const shoeMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+      const hairMat = new THREE.MeshLambertMaterial({ color: 0x332211 });
 
       // Legs
-      const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.8, 8), pantsMat);
-      legL.position.set(-0.12, 0.4, 0);
-      const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.8, 8), pantsMat);
-      legR.position.set(0.12, 0.4, 0);
+      const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.9, 8), pantsMat);
+      legL.position.set(-0.15, 0.45, 0);
+      const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.9, 8), pantsMat);
+      legR.position.set(0.15, 0.45, 0);
 
       // Shoes
-      const shoeL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.1, 0.28), shoeMat);
-      shoeL.position.set(-0.12, 0.05, 0.05);
-      const shoeR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.1, 0.28), shoeMat);
-      shoeR.position.set(0.12, 0.05, 0.05);
+      const shoeL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.35), shoeMat);
+      shoeL.position.set(-0.15, 0.06, 0.08);
+      const shoeR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.35), shoeMat);
+      shoeR.position.set(0.15, 0.06, 0.08);
 
       // Torso
-      const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.3), shirtMat);
-      torso.position.y = 1.15;
+      const torso = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.8, 0.35), shirtMat);
+      torso.position.y = 1.2;
 
       // Arms
-      const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.6, 6), shirtMat);
-      armL.position.set(-0.35, 1.1, 0);
-      const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.6, 6), shirtMat);
-      armR.position.set(0.35, 1.1, 0);
+      const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.7, 6), shirtMat);
+      armL.position.set(-0.4, 1.15, 0);
+      const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.7, 6), shirtMat);
+      armR.position.set(0.4, 1.15, 0);
 
       // Hands
-      const handL = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 6), skinMat);
-      handL.position.set(-0.35, 0.8, 0);
-      const handR = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 6), skinMat);
-      handR.position.set(0.35, 0.8, 0);
+      const handL = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), skinMat);
+      handL.position.set(-0.4, 0.78, 0);
+      const handR = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), skinMat);
+      handR.position.set(0.4, 0.78, 0);
 
       // Head
-      const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), skinMat);
-      head.position.y = 1.7;
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), skinMat);
+      head.position.y = 1.8;
 
       // Hair
-      const hair = new THREE.Mesh(new THREE.SphereGeometry(0.21, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.6), new THREE.MeshLambertMaterial({ color: 0x332211 }));
-      hair.position.y = 1.75;
+      const hair = new THREE.Mesh(new THREE.SphereGeometry(0.23, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.55), hairMat);
+      hair.position.y = 1.88;
 
       g.add(legL, legR, shoeL, shoeR, torso, armL, armR, handL, handR, head, hair);
       g.children.forEach(c => { c.castShadow = true; });
       g.position.set(x, 0, z);
-      this.person = g;
+      console.log("Fallback character created at", x, z);
     }
+
+    this.person = g;
     this.yaw = 0;
     this.health = this.maxHealth;
     this.alive = true;

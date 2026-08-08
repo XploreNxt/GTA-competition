@@ -307,8 +307,13 @@ const Game = {
     Particles.init(this.scene);
     Weather.init(this.scene);
 
-    Player.spawn(0, 50); // on main road, north side
-    this.scene.add(Player.person);
+    Player.spawn(0, 30); // on main road, north side
+    if (Player.person) {
+      this.scene.add(Player.person);
+      console.log("Player added to scene at", Player.person.position.x, Player.person.position.z);
+    } else {
+      console.error("Failed to create player!");
+    }
 
     HUD.setMoney(1500);
     HUD.setMission("Vice City");
