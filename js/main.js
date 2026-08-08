@@ -195,7 +195,9 @@ const Game = {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.renderer.toneMapping = THREE.NoToneMapping;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.1;
+    this.renderer.outputEncoding = THREE.sRGBEncoding;
 
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.Fog(0xe0c9a6, 110, 460);
@@ -264,24 +266,29 @@ const Game = {
 
 // Phase 1 world: city, traffic, player.
   _createWorld() {
-    City.init(this.scene);
+    try {
+      City.init(this.scene);
 
-    Vehicle.init(this.scene);
-    Vehicle.spawnTraffic(42);
+      Vehicle.init(this.scene);
+      Vehicle.spawnTraffic(42);
 
-    Peds.init(this.scene);
-    Peds.spawn(40);
+      Peds.init(this.scene);
+      Peds.spawn(40);
 
-    Police.init(this.scene);
-    Mission.init(this.scene);
-    Particles.init(this.scene);
-    Weather.init(this.scene);
+      Police.init(this.scene);
+      Mission.init(this.scene);
+      Particles.init(this.scene);
+      Weather.init(this.scene);
 
-    Player.spawn(City.BLOCK * 2, 0); // on a road centerline
-    this.scene.add(Player.person);
+      Player.spawn(City.BLOCK * 2, 0); // on a road centerline
+      this.scene.add(Player.person);
 
-    HUD.setMoney(1500);
-    HUD.setMission("Vice City");
+      HUD.setMoney(1500);
+      HUD.setMission("Vice City");
+    } catch (e) {
+      console.error("World creation failed:", e);
+      throw e;
+    }
   },
 
   _createSky() {
@@ -308,37 +315,44 @@ const Game = {
   },
 
   _createEnvironment() {
-    const pmrem = new THREE.PMREMGenerator(this.renderer);
-    const envScene = new THREE.Scene();
-    envScene.background = new THREE.Color(0xcfe6ff);
+    try {
+      const pmrem = new THREE.PMREMGenerator(this.renderer);
+      pmrem.compileEquirectangularShader();
+      const envScene = new THREE.Scene();
+      envScene.background = new THREE.Color(0xcfe6ff);
 
-    const sunLook = new THREE.DirectionalLight(0xffe0b0, 3);
-    sunLook.position.copy(Graphics.sunDir);
-    envScene.add(sunLook);
+      const sunLook = new THREE.DirectionalLight(0xffe0b0, 3);
+      sunLook.position.copy(Graphics.sunDir);
+      envScene.add(sunLook);
 
-    const skyBox = new THREE.Mesh(
-      new THREE.BoxGeometry(20, 20, 20),
-      new THREE.MeshBasicMaterial({
-        map: (() => {
-          const c = document.createElement("canvas");
-          c.width = c.height = 512;
-          const ctx = c.getContext("2d");
-          const g = ctx.createLinearGradient(0, 0, 0, 512);
-          g.addColorStop(0, "#6db9ff");
-          g.addColorStop(0.6, "#b8d8f2");
-          g.addColorStop(1, "#d9cba7");
-          ctx.fillStyle = g;
-          ctx.fillRect(0, 0, 512, 512);
-          return new THREE.CanvasTexture(c);
-        })(),
-        side: THREE.BackSide,
-      })
-    );
-    envScene.add(skyBox);
+      const skyBox = new THREE.Mesh(
+        new THREE.BoxGeometry(20, 20, 20),
+        new THREE.MeshBasicMaterial({
+          map: (() => {
+            const c = document.createElement("canvas");
+            c.width = c.height = 512;
+            const ctx = c.getContext("2d");
+            const g = ctx.createLinearGradient(0, 0, 0, 512);
+            g.addColorStop(0, "#6db9ff");
+            g.addColorStop(0.6, "#b8d8f2");
+            g.addColorStop(1, "#d9cba7");
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, 512, 512);
+            return new THREE.CanvasTexture(c);
+          })(),
+          side: THREE.BackSide,
+        })
+      );
+      envScene.add(skyBox);
 
-    const envRT = pmrem.fromScene(envScene, 0.1);
-    this.scene.environment = envRT.texture;
-    pmrem.dispose();
+      const envRT = pmrem.fromScene(envScene, 0.1);
+      this.scene.environment = envRT.texture;
+      pmrem.dispose();
+    } catch (e) {
+      console.warn("Environment map failed:", e);
+      this.scene.environment = null;
+    }
+    this.renderer.setRenderTarget(null);
   },
 
   _createLights() {
@@ -454,37 +468,14 @@ const Game = {
   },
 
   _createPostFX() {
-    try {
-      const size = new THREE.Vector2(window.innerWidth, window.innerHeight);
-      const composer = this.composer = new THREE.EffectComposer(this.renderer);
-      composer.addPass(new THREE.RenderPass(this.scene, this.camera));
-
-      this.bloom = new THREE.UnrealBloomPass(size, 0.55, 0.6, 0.88);
-      composer.addPass(this.bloom);
-
-      this._finalPass = new THREE.ShaderPass(Graphics.finalShader);
-      composer.addPass(this._finalPass);
-
-      const fxaa = new THREE.ShaderPass(THREE.FXAAShader);
-      fxaa.material.uniforms.resolution.value.set(1 / window.innerWidth, 1 / window.innerHeight);
-      this.fxaa = fxaa;
-      composer.addPass(fxaa);
-    } catch (e) {
-      console.warn("PostFX failed, using direct rendering:", e);
-      this.composer = null;
-    }
+    // Post-processing handled via CSS overlay (see #post-fx in index.html)
+    // GPU composer removed due to MAX_FRAGMENT_UNIFORM_VECTORS limit on this Three.js version
   },
 
   _onResize() {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    if (this.composer) {
-      this.composer.setSize(window.innerWidth, window.innerHeight);
-    }
-    if (this.fxaa) {
-      this.fxaa.material.uniforms.resolution.value.set(1 / window.innerWidth, 1 / window.innerHeight);
-    }
   },
 
   _onDragMove(e) {
@@ -561,23 +552,11 @@ const Game = {
     this.updateCamera();
     this.sky.material.uniforms.sunPosition.value.copy(Graphics.sunDir);
     if (this.water) this.water.material.uniforms.uTime.value = this.time;
-    if (this._finalPass) this._finalPass.material.uniforms.uTime.value = this.time;
     this._safeRender();
   },
 
   _safeRender() {
-    try {
-      if (this.composer) {
-        this.composer.render(0);
-      } else {
-        this.renderer.render(this.scene, this.camera);
-      }
-    } catch (e) {
-      // Composer failed — fall back to direct render
-      console.warn("Composer render failed, using fallback:", e.message);
-      this.composer = null;
-      this.renderer.render(this.scene, this.camera);
-    }
+    this.renderer.render(this.scene, this.camera);
   },
 
   _menuTime: 0,
