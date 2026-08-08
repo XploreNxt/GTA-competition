@@ -42,7 +42,8 @@ const Vehicle = {
   },
 
   // Build a car group. Returns the group with a .speed hint (for traffic).
-  buildCar(color, onRoad) {
+  // withLights: true adds SpotLight/PointLight (only for player/police car, not traffic).
+  buildCar(color, onRoad, withLights) {
     const g = new THREE.Group();
     const geos = this._geos();
     const m = this._mats(color);
@@ -88,27 +89,33 @@ const Vehicle = {
     g.add(body, hood, trunk, cabin, windshield, hlL, hlR, tlL, tlR,
       mkWheel(-0.85, 1.1), mkWheel(0.85, 1.1), mkWheel(-0.85, -1.1), mkWheel(0.85, -1.1));
 
-    // Headlights (spotlights)
-    const headL = new THREE.SpotLight(0xfff0cc, 0, 22, 0.5, 0.6, 1.5);
-    headL.position.set(-0.45, 0.7, 1.9);
-    headL.target.position.set(-0.45, 0, 12);
-    g.add(headL, headL.target);
+    if (withLights) {
+      // Headlights (spotlights) — only for player/police car
+      const headL = new THREE.SpotLight(0xfff0cc, 0, 22, 0.5, 0.6, 1.5);
+      headL.position.set(-0.45, 0.7, 1.9);
+      headL.target.position.set(-0.45, 0, 12);
+      g.add(headL, headL.target);
 
-    const headR = new THREE.SpotLight(0xfff0cc, 0, 22, 0.5, 0.6, 1.5);
-    headR.position.set(0.45, 0.7, 1.9);
-    headR.target.position.set(0.45, 0, 12);
-    g.add(headR, headR.target);
+      const headR = new THREE.SpotLight(0xfff0cc, 0, 22, 0.5, 0.6, 1.5);
+      headR.position.set(0.45, 0.7, 1.9);
+      headR.target.position.set(0.45, 0, 12);
+      g.add(headR, headR.target);
 
-    // Taillights (dim red glow)
-    const tailL = new THREE.PointLight(0xff2222, 0, 6, 2);
-    tailL.position.set(-0.52, 0.66, -1.9);
-    g.add(tailL);
-    const tailR = new THREE.PointLight(0xff2222, 0, 6, 2);
-    tailR.position.set(0.52, 0.66, -1.9);
-    g.add(tailR);
+      // Taillights (dim red glow)
+      const tailL = new THREE.PointLight(0xff2222, 0, 6, 2);
+      tailL.position.set(-0.52, 0.66, -1.9);
+      g.add(tailL);
+      const tailR = new THREE.PointLight(0xff2222, 0, 6, 2);
+      tailR.position.set(0.52, 0.66, -1.9);
+      g.add(tailR);
 
-    g.userData.headlights = [headL, headR];
-    g.userData.taillights = [tailL, tailR];
+      g.userData.headlights = [headL, headR];
+      g.userData.taillights = [tailL, tailR];
+    } else {
+      // Traffic cars: emissive meshes only, no GPU light objects
+      g.userData.headlights = null;
+      g.userData.taillights = null;
+    }
 
     this.scene.add(g);
     return g;
@@ -121,7 +128,7 @@ const Vehicle = {
     const palette = [0x2c6fbb, 0x2f9e44, 0xe0d94f, 0xf2f2f2, 0x8b2fc9, 0xc95a2f, 0x2a2a2a, 0x6fb7a5];
     for (let i = 0; i < count; i++) {
       const r = City.randomRoad();
-      const car = this.buildCar(palette[i % palette.length]);
+      const car = this.buildCar(palette[i % palette.length], false, false);
       car.position.set(r.x, 0, r.z);
       if (r.horizontal) {
         car.rotation.y = r.dir > 0 ? Math.PI : 0; // drive +X or -X
@@ -137,8 +144,14 @@ const Vehicle = {
     }
   },
 
+  _trafficAccum: 0,
+
   // Drive all traffic cars straight along their road, wrap at world edges.
   updateTraffic(dt) {
+    this._trafficAccum += dt;
+    if (this._trafficAccum < 0.05) return; // ~20fps update
+    dt = this._trafficAccum;
+    this._trafficAccum = 0;
     const span = City.roadSpan;
     const half = span / 2;
     for (const car of this.cars) {

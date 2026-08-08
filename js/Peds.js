@@ -90,14 +90,29 @@ const Peds = {
   },
 
   update(dt, playerPos, playerInCar) {
+    this._pedAccum = (this._pedAccum || 0) + dt;
+    if (this._pedAccum < 0.066) return; // ~15fps for peds
+    dt = this._pedAccum;
+    this._pedAccum = 0;
+
     const span = City.roadSpan;
     const hSpan = span / 2;
+
+    // Skip far peds
+    const camX = playerPos.x, camZ = playerPos.z;
 
     for (const ped of this.list) {
       const p = ped.userData;
       const dx = playerPos.x - ped.position.x;
       const dz = playerPos.z - ped.position.z;
       const distSq = dx * dx + dz * dz;
+
+      // Skip far-away peds (no need to update AI)
+      if (distSq > 2500) { // 50m distance
+        ped.visible = false;
+        continue;
+      }
+      ped.visible = true;
 
       // Panic when the player is near and moving (in a car).
       const threat = playerInCar && distSq < 49;

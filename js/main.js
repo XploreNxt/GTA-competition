@@ -189,19 +189,21 @@ const Game = {
     window.addEventListener("mousemove", (e) => this._onDragMove(e));
 
     this.renderer = new THREE.WebGLRenderer({
-      canvas: document.getElementById("game-canvas"), antialias: true,
+      canvas: document.getElementById("game-canvas"), antialias: false, // FXAA not needed, perf boost
+      powerPreference: "high-performance",
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5)); // cap DPR for perf
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.BasicShadowMap; // faster than PCFSoft
+    this._shadowsEnabled = true;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.1;
     this.renderer.outputEncoding = THREE.sRGBEncoding;
 
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(0xe0c9a6, 110, 460);
-    this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1200);
+    this.scene.fog = new THREE.Fog(0xe0c9a6, 80, 300); // tighter fog culls distant objects
+    this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500); // reduced far plane
 
     this._createSky();
     this._createEnvironment();
@@ -227,6 +229,12 @@ const Game = {
     if (e.code === "Escape") {
       if (this.state === "playing") this.pause();
       else if (this.state === "paused") this.resume();
+    }
+    // Debug: press 'T' to toggle shadows for performance
+    if (e.code === "KeyT") {
+      this._shadowsEnabled = !this._shadowsEnabled;
+      this.renderer.shadowMap.enabled = this._shadowsEnabled;
+      this.renderer.needsUpdate = true;
     }
   },
 
@@ -269,11 +277,11 @@ const Game = {
     try {
       City.init(this.scene);
 
-      Vehicle.init(this.scene);
-      Vehicle.spawnTraffic(42);
+    Vehicle.init(this.scene);
+    Vehicle.spawnTraffic(20); // reduced from 42 for perf
 
-      Peds.init(this.scene);
-      Peds.spawn(40);
+    Peds.init(this.scene);
+    Peds.spawn(20); // reduced from 40 for perf
 
       Police.init(this.scene);
       Mission.init(this.scene);
@@ -359,13 +367,13 @@ const Game = {
     this.sunLight = new THREE.DirectionalLight(0xffe7c0, 1.9);
     this.sunLight.position.copy(Graphics.sunDir).normalize().multiplyScalar(200);
     this.sunLight.castShadow = true;
-    this.sunLight.shadow.mapSize.set(2048, 2048);
+    this.sunLight.shadow.mapSize.set(1024, 1024); // lower res for perf
     this.sunLight.shadow.camera.near = 10;
-    this.sunLight.shadow.camera.far = 500;
-    this.sunLight.shadow.camera.left = -90;
-    this.sunLight.shadow.camera.right = 90;
-    this.sunLight.shadow.camera.top = 90;
-    this.sunLight.shadow.camera.bottom = -90;
+    this.sunLight.shadow.camera.far = 200; // tighter shadow frustum
+    this.sunLight.shadow.camera.left = -60;
+    this.sunLight.shadow.camera.right = 60;
+    this.sunLight.shadow.camera.top = 60;
+    this.sunLight.shadow.camera.bottom = -60;
     this.sunLight.shadow.bias = -0.0005;
     this.scene.add(this.sunLight);
 
@@ -378,15 +386,15 @@ const Game = {
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.repeat.set(70, 70);
 
-    this._groundMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.94, metalness: 0.02 });
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(1600, 1600), this._groundMat);
+    this._groundMat = new THREE.MeshLambertMaterial({ map: tex }); // Lambert is faster than Standard
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), this._groundMat); // smaller ground
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     this.scene.add(ground);
   },
 
   _createOcean() {
-    const waterGeo = new THREE.PlaneGeometry(2400, 2400, 128, 128);
+    const waterGeo = new THREE.PlaneGeometry(2400, 2400, 32, 32); // reduced segments for perf
     const waterMat = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
@@ -487,9 +495,15 @@ const Game = {
     this.orbitPitch = Math.max(0.1, Math.min(1.4, this.orbitPitch + dy * 0.005));
   },
 
+  _dayNightAccum: 0,
+
   update(dt) {
     this.time += dt;
-    this._updateDayNight(dt);
+    this._dayNightAccum += dt;
+    if (this._dayNightAccum > 0.1) { // update day/night at 10fps instead of 60fps
+      this._updateDayNight(this._dayNightAccum);
+      this._dayNightAccum = 0;
+    }
     Mission.update(dt);
     Player.update(dt);
     Vehicle.updateTraffic(dt);
@@ -529,12 +543,14 @@ const Game = {
     this.camera.position.lerp(new THREE.Vector3(cx + (Math.random() - 0.5) * s, cy + (Math.random() - 0.5) * s, cz + (Math.random() - 0.5) * s), 0.25);
     this.camera.lookAt(new THREE.Vector3(pos.x + (Math.random() - 0.5) * s * 0.5, pos.y + 1.2, pos.z));
 
-    // Dynamic FOV — increases at high speed
+    // Dynamic FOV — increases at high speed (less frequent projection matrix update)
     const baseFOV = 60;
     const speedFOV = Player.inCar ? Math.abs(Player.speed) / Player.maxSpeed * 12 : 0;
     const targetFOV = baseFOV + speedFOV;
-    this.camera.fov += (targetFOV - this.camera.fov) * 0.08;
-    this.camera.updateProjectionMatrix();
+    if (Math.abs(targetFOV - this.camera.fov) > 0.5) { // only update when significant change
+      this.camera.fov += (targetFOV - this.camera.fov) * 0.08;
+      this.camera.updateProjectionMatrix();
+    }
   },
 
   loop() {

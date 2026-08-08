@@ -118,6 +118,29 @@ const Player = {
     this.speed = 0;
     this.person.visible = false;
     AudioFX.whoosh();
+
+    // Add headlights/taillights if the car doesn't have them (traffic cars)
+    if (!car.userData.headlights) {
+      const headL = new THREE.SpotLight(0xfff0cc, 0, 22, 0.5, 0.6, 1.5);
+      headL.position.set(-0.45, 0.7, 1.9);
+      headL.target.position.set(-0.45, 0, 12);
+      car.add(headL, headL.target);
+
+      const headR = new THREE.SpotLight(0xfff0cc, 0, 22, 0.5, 0.6, 1.5);
+      headR.position.set(0.45, 0.7, 1.9);
+      headR.target.position.set(0.45, 0, 12);
+      car.add(headR, headR.target);
+
+      const tailL = new THREE.PointLight(0xff2222, 0, 6, 2);
+      tailL.position.set(-0.52, 0.66, -1.9);
+      car.add(tailL);
+      const tailR = new THREE.PointLight(0xff2222, 0, 6, 2);
+      tailR.position.set(0.52, 0.66, -1.9);
+      car.add(tailR);
+
+      car.userData.headlights = [headL, headR];
+      car.userData.taillights = [tailL, tailR];
+    }
   },
 
   exit() {

@@ -54,7 +54,7 @@ const Police = {
       if (dx * dx + dz * dz > 8100 && dx * dx + dz * dz < 810000) { r = cand; break; }
     }
     if (!r) r = City.randomRoad();
-    const car = Vehicle.buildCar(0x1b1b25); // black
+    const car = Vehicle.buildCar(0x1b1b25, false, true); // black, with lights
     car.position.set(r.x, 0, r.z);
     car.rotation.y = 0;
     car.userData = {
