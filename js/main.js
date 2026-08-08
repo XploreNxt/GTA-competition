@@ -141,6 +141,7 @@ const Game = {
     Peds.spawn(40);
 
     Police.init(this.scene);
+    Mission.init(this.scene);
 
     Player.spawn(City.BLOCK * 2, 0); // on a road centerline
     this.scene.add(Player.person);
@@ -271,6 +272,7 @@ const Game = {
 
 update(dt) {
     this.time += dt;
+    Mission.update(dt); // before Player so Mission.usedE is set first
     Player.update(dt);
     Vehicle.updateTraffic(dt);
     Peds.update(dt, Player.pos(), Player.inCar);
@@ -282,8 +284,8 @@ update(dt) {
       Police.reportCrime(pedHits * 0.55 * (Player.inCar ? 1.5 : 0.6));
       Peds._hits = 0;
     }
-    const carHit = Vehicle._playerBumped;
-    if (carHit) {
+    if (Vehicle._playerBumped) {
+      Mission.onTrafficBumps(Vehicle._playerBumped);
       Police.reportCrime(0.45);
       Vehicle._playerBumped = 0;
     }

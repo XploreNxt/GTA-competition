@@ -112,6 +112,11 @@ const Player = {
     if (this.inCar) this._updateCar(dt);
     else this._updateFoot(dt);
 
+    if (Mission.usedE) { // mission grabbed the E press this frame
+      Mission.usedE = false;
+      this._eLast = Input.any("KeyE", "Enter");
+      return;
+    }
     const e = Input.any("KeyE", "Enter");
     if (e && !this._eLast) {
       if (this.inCar) this.exit();

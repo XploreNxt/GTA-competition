@@ -8,10 +8,13 @@ const HUD = {
   wanted: 0,
   mission: "",
   objective: "",
+  tooltip: "",       // contextual hint, bottom-center
+  waypoint: null,    // {x, z} in world space, or null
 
   _canvas: null,
   _ctx: null,
   _dpr: 1,
+  _v3: null,
 
   init() {
     this._canvas = document.getElementById("hud-canvas");
@@ -106,6 +109,62 @@ const HUD = {
       ctx.fillText(this.mission, w / 2, h - 35);
     }
 
+    // --- Waypoint GPS arrow (bottom-center ring) ---
+    if (this.waypoint && Game.camera) {
+      if (!this._v3) this._v3 = new THREE.Vector3();
+      const v = this._v3.set(this.waypoint.x, 0.5, this.waypoint.z).project(Game.camera);
+      const behind = v.z > 1;
+      let sx = (v.x * 0.5 + 0.5) * w;
+      let sy = (-v.y * 0.5 + 0.5) * h;
+      if (behind) {
+        sx = w - sx;
+        sy = h - sy;
+      }
+      const cx = w / 2, cy = h - 74;
+      let ang = Math.atan2(sy - cy, sx - cx);
+      if (behind) ang += Math.PI;
+      // keep arrow on a 46px-radius ring
+      const ax = cx + Math.cos(ang) * 46;
+      const ay = cy + Math.sin(ang) * 46;
+
+      ctx.save();
+      ctx.translate(ax, ay);
+      ctx.rotate(ang);
+      ctx.fillStyle = "#ffd93d";
+      ctx.beginPath();
+      ctx.moveTo(12, 0);
+      ctx.lineTo(-8, -8);
+      ctx.lineTo(-4, 0);
+      ctx.lineTo(-8, 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      ctx.strokeStyle = "rgba(0,0,0,0.6)";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 52, 0, Math.PI * 2);
+      ctx.stroke();
+
+      const dist = Math.hypot(this.waypoint.x - Player.pos().x, this.waypoint.z - Player.pos().z);
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 13px Segoe UI";
+      ctx.textAlign = "center";
+      ctx.fillText(Math.ceil(dist) + " m", cx, cy - 2);
+    }
+
+    // --- Context tooltip (bottom-center, above mission text) ---
+    if (this.tooltip) {
+      ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      const textW = ctx.measureText(this.tooltip).width + 40;
+      ctx.fillRect(w / 2 - textW / 2, h - 88, textW, 30);
+      ctx.fillStyle = "#ffd93d";
+      ctx.font = "bold 14px Segoe UI";
+      ctx.textBaseline = "middle";
+      ctx.fillText(this.tooltip, w / 2, h - 73);
+    }
+
     ctx.restore();
   },
 
@@ -114,5 +173,6 @@ const HUD = {
   setHealth(v) { this.health = v; },
   setWanted(v) { this.wanted = v; },
   setMission(t) { this.mission = t; },
-  setObjective(t) { this.objective = t; }
+  setObjective(t) { this.objective = t; },
+  setWaypoint(x, z) { this.waypoint = (x === null || x === undefined) ? null : { x, z }; }
 };
