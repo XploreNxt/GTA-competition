@@ -284,9 +284,10 @@ const Game = {
       setTimeout(() => reject(new Error("City load timeout")), 30000);
     });
 
-    this._setLoading(40, "Spawning traffic...");
-    Vehicle.init(this.scene);
+    this._setLoading(40, "Loading car models...");
+    await Vehicle.init(this.scene);
     Vehicle.spawnTraffic(15);
+    Vehicle.spawnParked(20);
 
     this._setLoading(50, "Loading character models...");
     if (Characters.load) {
@@ -307,7 +308,7 @@ const Game = {
     Particles.init(this.scene);
     Weather.init(this.scene);
 
-    Player.spawn(0, 30); // on main road, north side
+    Player.spawn(0, 0); // center intersection, guaranteed on road
     if (Player.person) {
       this.scene.add(Player.person);
       console.log("Player added to scene at", Player.person.position.x, Player.person.position.z);
@@ -491,7 +492,7 @@ const Game = {
 
     this.water = new THREE.Mesh(waterGeo, waterMat);
     this.water.rotation.x = -Math.PI / 2;
-    this.water.position.y = -1.2;
+    this.water.position.y = -6;
     this.scene.add(this.water);
   },
 

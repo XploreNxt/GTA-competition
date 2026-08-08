@@ -27,71 +27,53 @@ const Player = {
   _jumpHeld: false,
 
   spawn(x, z) {
-    let g = null;
+    const g = new THREE.Group();
 
-    // Try FBX character first
-    try {
-      if (Characters.ready && Characters.model) {
-        g = Characters.make(0);
-        g.position.set(x, 0, z);
-        Characters.track(g);
-        Characters.playAnim(g, "idle");
-      }
-    } catch (e) {
-      console.warn("FBX character failed, using fallback:", e);
-    }
+    const skinMat = new THREE.MeshLambertMaterial({ color: 0xffcc99 });
+    const shirtMat = new THREE.MeshLambertMaterial({ color: 0x3366aa });
+    const pantsMat = new THREE.MeshLambertMaterial({ color: 0x333355 });
+    const shoeMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+    const hairMat = new THREE.MeshLambertMaterial({ color: 0x332211 });
 
-    // Fallback: build a visible humanoid from primitives
-    if (!g) {
-      g = new THREE.Group();
+    // Legs
+    const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.9, 8), pantsMat);
+    legL.position.set(-0.15, 0.45, 0);
+    const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.9, 8), pantsMat);
+    legR.position.set(0.15, 0.45, 0);
 
-      const skinMat = new THREE.MeshLambertMaterial({ color: 0xffcc99 });
-      const shirtMat = new THREE.MeshLambertMaterial({ color: 0x3366aa });
-      const pantsMat = new THREE.MeshLambertMaterial({ color: 0x333355 });
-      const shoeMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
-      const hairMat = new THREE.MeshLambertMaterial({ color: 0x332211 });
+    // Shoes
+    const shoeL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.35), shoeMat);
+    shoeL.position.set(-0.15, 0.06, 0.08);
+    const shoeR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.35), shoeMat);
+    shoeR.position.set(0.15, 0.06, 0.08);
 
-      // Legs
-      const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.9, 8), pantsMat);
-      legL.position.set(-0.15, 0.45, 0);
-      const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.9, 8), pantsMat);
-      legR.position.set(0.15, 0.45, 0);
+    // Torso
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.8, 0.35), shirtMat);
+    torso.position.y = 1.2;
 
-      // Shoes
-      const shoeL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.35), shoeMat);
-      shoeL.position.set(-0.15, 0.06, 0.08);
-      const shoeR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.35), shoeMat);
-      shoeR.position.set(0.15, 0.06, 0.08);
+    // Arms
+    const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.7, 6), shirtMat);
+    armL.position.set(-0.4, 1.15, 0);
+    const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.7, 6), shirtMat);
+    armR.position.set(0.4, 1.15, 0);
 
-      // Torso
-      const torso = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.8, 0.35), shirtMat);
-      torso.position.y = 1.2;
+    // Hands
+    const handL = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), skinMat);
+    handL.position.set(-0.4, 0.78, 0);
+    const handR = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), skinMat);
+    handR.position.set(0.4, 0.78, 0);
 
-      // Arms
-      const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.7, 6), shirtMat);
-      armL.position.set(-0.4, 1.15, 0);
-      const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.7, 6), shirtMat);
-      armR.position.set(0.4, 1.15, 0);
+    // Head
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), skinMat);
+    head.position.y = 1.8;
 
-      // Hands
-      const handL = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), skinMat);
-      handL.position.set(-0.4, 0.78, 0);
-      const handR = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), skinMat);
-      handR.position.set(0.4, 0.78, 0);
+    // Hair
+    const hair = new THREE.Mesh(new THREE.SphereGeometry(0.23, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.55), hairMat);
+    hair.position.y = 1.88;
 
-      // Head
-      const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), skinMat);
-      head.position.y = 1.8;
-
-      // Hair
-      const hair = new THREE.Mesh(new THREE.SphereGeometry(0.23, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.55), hairMat);
-      hair.position.y = 1.88;
-
-      g.add(legL, legR, shoeL, shoeR, torso, armL, armR, handL, handR, head, hair);
-      g.children.forEach(c => { c.castShadow = true; });
-      g.position.set(x, 0, z);
-      console.log("Fallback character created at", x, z);
-    }
+    g.add(legL, legR, shoeL, shoeR, torso, armL, armR, handL, handR, head, hair);
+    g.children.forEach(c => { c.castShadow = true; });
+    g.position.set(x, 0, z);
 
     this.person = g;
     this.yaw = 0;
@@ -169,6 +151,7 @@ const Player = {
     this.car = car;
     if (car.userData) car.userData.active = false; // stop traffic AI on it
     this.yaw = car.rotation.y;
+    this._camHeading = 0; // drive straight into the screen
     this.speed = 0;
     this.person.visible = false;
     AudioFX.whoosh();
@@ -176,20 +159,20 @@ const Player = {
     // Add headlights/taillights if the car doesn't have them (traffic cars)
     if (!car.userData.headlights) {
       const headL = new THREE.SpotLight(0xfff0cc, 0, 22, 0.5, 0.6, 1.5);
-      headL.position.set(-0.45, 0.7, 1.9);
-      headL.target.position.set(-0.45, 0, 12);
+      headL.position.set(-0.55, 0.6, 2.2);
+      headL.target.position.set(-0.55, 0, 14);
       car.add(headL, headL.target);
 
       const headR = new THREE.SpotLight(0xfff0cc, 0, 22, 0.5, 0.6, 1.5);
-      headR.position.set(0.45, 0.7, 1.9);
-      headR.target.position.set(0.45, 0, 12);
+      headR.position.set(0.55, 0.6, 2.2);
+      headR.target.position.set(0.55, 0, 14);
       car.add(headR, headR.target);
 
       const tailL = new THREE.PointLight(0xff2222, 0, 6, 2);
-      tailL.position.set(-0.52, 0.66, -1.9);
+      tailL.position.set(-0.55, 0.55, -2.2);
       car.add(tailL);
       const tailR = new THREE.PointLight(0xff2222, 0, 6, 2);
-      tailR.position.set(0.52, 0.66, -1.9);
+      tailR.position.set(0.55, 0.55, -2.2);
       car.add(tailR);
 
       car.userData.headlights = [headL, headR];
@@ -225,7 +208,7 @@ const Player = {
     if (e && !this._eLast) {
       if (this.inCar) this.exit();
       else {
-        const target = this.nearbyCar(Vehicle.cars);
+        const target = this.nearbyCar(Vehicle.cars) || this.nearbyCar(Vehicle.parked);
         if (target) this.enter(target);
       }
     }
@@ -243,8 +226,12 @@ const Player = {
     const inputV = Input.axisV(); // W=+1, S=-1
     const inputH = Input.axisH(); // D=+1, A=-1
 
-    const dx = (fwdX * inputV + rightX * inputH) * this.footSpeed * dt;
-    const dz = (fwdZ * inputV + rightZ * inputH) * this.footSpeed * dt;
+    // Walk at 3x speed; sprint at 8x while holding Shift and moving forward
+    const sprint = inputV > 0 && (Input.keys["ShiftLeft"] || Input.keys["ShiftRight"]);
+    const spd = this.footSpeed * (sprint ? 8 : 3);
+
+    const dx = (fwdX * inputV + rightX * inputH) * spd * dt;
+    const dz = (fwdZ * inputV + rightZ * inputH) * spd * dt;
 
     this.person.position.x += dx;
     this.person.position.z += dz;
@@ -275,7 +262,7 @@ const Player = {
     // Animate: jump while airborne, run while moving, idle otherwise.
     const moving = inputV !== 0 || inputH !== 0;
     if (this.person.position.y > 0.01) Characters.playAnim(this.person, "jump");
-    else if (moving) Characters.playAnim(this.person, "run", 0.9 + Math.min(0.4, Math.hypot(inputV, inputH) * 0.4));
+    else if (moving) Characters.playAnim(this.person, "run", sprint ? 1.6 : 0.9 + Math.min(0.4, Math.hypot(inputV, inputH) * 0.4));
     else Characters.playAnim(this.person, "idle");
   },
 
@@ -299,19 +286,26 @@ const Player = {
 
     if (handbrake) this.speed *= Math.max(0, 1 - 8 * dt);
 
-    // Steering rotates the car (camera follows via orbitYaw)
-    const dir = Math.sign(this.speed);
-    this.yaw += steer * this.turnRate * dt * dir * Math.min(1, Math.abs(this.speed) / 9 + 0.2); // flip for correct steering
-    this.car.rotation.y = this.yaw;
+    // Camera-relative driving: W drives where the camera looks, S reverses,
+    // A/D turn the car left/right on screen. Nose always points along travel.
+    const o = Game.orbitYaw;
+    const fwdX = -Math.sin(o), fwdZ = Math.cos(o);  // screen-forward (world)
+    const rgtX = -Math.cos(o), rgtZ = -Math.sin(o); // screen-right (world)
 
-    // Camera-relative movement: car moves in camera's forward direction
-    const camAngle = this.yaw + Game.orbitYaw;
-    const fwdX = -Math.sin(camAngle);
-    const fwdZ = Math.cos(camAngle);
+    const dir = Math.sign(this.speed);
+    const turn = steer * this.turnRate * dt * dir * Math.min(1, Math.abs(this.speed) / 9 + 0.2);
+    this._camHeading = (this._camHeading || 0) + turn;
+
+    const c = Math.cos(this._camHeading), s = Math.sin(this._camHeading);
+    const vx = fwdX * c + rgtX * s;
+    const vz = fwdZ * c + rgtZ * s;
 
     const move = this.speed * dt;
-    this.car.position.x += fwdX * move;
-    this.car.position.z += fwdZ * move;
+    this.car.position.x += vx * move;
+    this.car.position.z += vz * move;
+
+    this.yaw = this.speed >= 0 ? Math.atan2(-vx, vz) : Math.atan2(vx, -vz);
+    this.car.rotation.y = this.yaw;
 
     // Particles: tire smoke on handbrake/braking
     if (handbrake && Math.abs(this.speed) > 3) {

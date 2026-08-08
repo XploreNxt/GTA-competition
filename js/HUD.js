@@ -157,7 +157,7 @@ const HUD = {
   _minimapBuildingCache: null,
 
   _updateMinimap() {
-    if (!City.BLOCK || !Player.person) return;
+    if (!Player.person) return;
     const ctx = this._minimapCtx;
     const size = 160;
     ctx.clearRect(0, 0, size, size);
@@ -174,54 +174,39 @@ const HUD = {
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, size, size);
 
-    // Building blocks — cache on first draw
-    if (!this._minimapBuildingCache) {
-      const bc = document.createElement("canvas");
-      bc.width = bc.height = size;
-      const bctx = bc.getContext("2d");
-      const blk = City.BLOCK;
-      const interior = blk - City.ROAD_W - City.SIDEWALK * 2;
-      const rand = (a, b) => { const x = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return x - Math.floor(x); };
+    // Road network — draw actual roads
+    ctx.fillStyle = "rgba(60,60,70,0.6)";
+    const roadHalf = City.ROAD_WIDTH / 2;
 
-      for (let ix = -City.EXTENT; ix < City.EXTENT; ix++) {
-        for (let iz = -City.EXTENT; iz < City.EXTENT; iz++) {
-          const cx = ix * blk + blk / 2;
-          const cz = iz * blk + blk / 2;
-          const w = interior * (0.62 + 0.36 * rand(ix, iz));
-          const d = interior * (0.62 + 0.36 * rand(ix + 1, iz));
-          const bx = mx(cx), bz = my(cz);
-          const bw = w * scale, bd = d * scale;
+    // Main road along X at z=0
+    ctx.fillRect(0, my(-roadHalf), size, my(roadHalf) - my(-roadHalf));
 
-          const r = 40 + Math.floor(rand(ix + 3, iz + 3) * 30);
-          const g = 45 + Math.floor(rand(ix + 5, iz + 5) * 25);
-          const b2 = 55 + Math.floor(rand(ix + 7, iz + 7) * 20);
-          bctx.fillStyle = `rgba(${r},${g},${b2},0.5)`;
-          bctx.fillRect(bx - bw / 2, bz - bd / 2, bw, bd);
-        }
-      }
-      this._minimapBuildingCache = bc;
-    }
-    ctx.drawImage(this._minimapBuildingCache, 0, 0);
+    // Loop roads at z=350 and z=-350
+    const loopW = 8;
+    ctx.fillRect(0, my(350 - loopW / 2), size, my(350 + loopW / 2) - my(350 - loopW / 2));
+    ctx.fillRect(0, my(-350 - loopW / 2), size, my(-350 + loopW / 2) - my(-350 - loopW / 2));
 
-    // Street grid — brighter lines for roads
-    ctx.strokeStyle = "rgba(100,100,110,0.35)";
-    ctx.lineWidth = Math.max(1, City.ROAD_W * scale * 0.5);
-    for (let i = -City.EXTENT; i <= City.EXTENT; i++) {
-      const kx = mx(i * City.BLOCK), kz = my(i * City.BLOCK);
-      ctx.beginPath(); ctx.moveTo(kx, 0); ctx.lineTo(kx, size); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, kz); ctx.lineTo(size, kz); ctx.stroke();
-    }
-
-    // Road center dashes
-    ctx.strokeStyle = "rgba(255,220,80,0.15)";
+    // Center line (yellow dashes)
+    ctx.strokeStyle = "rgba(255,220,80,0.25)";
     ctx.lineWidth = 0.5;
     ctx.setLineDash([3, 5]);
-    for (let i = -City.EXTENT; i <= City.EXTENT; i++) {
-      const kx = mx(i * City.BLOCK), kz = my(i * City.BLOCK);
-      ctx.beginPath(); ctx.moveTo(kx, 0); ctx.lineTo(kx, size); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, kz); ctx.lineTo(size, kz); ctx.stroke();
-    }
+    ctx.beginPath(); ctx.moveTo(0, my(0)); ctx.lineTo(size, my(0)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, my(350)); ctx.lineTo(size, my(350)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, my(-350)); ctx.lineTo(size, my(-350)); ctx.stroke();
     ctx.setLineDash([]);
+
+    // Building blocks — from actual City.buildings data
+    for (const b of City.buildings) {
+      const bx = mx(b.x - b.hw);
+      const bz = my(b.z - b.hd);
+      const bw = b.hw * 2 * scale;
+      const bd = b.hd * 2 * scale;
+      const r = 40 + Math.floor((b.h / 75) * 40);
+      const g = 50 + Math.floor((b.h / 75) * 30);
+      const b2 = 65 + Math.floor((b.h / 75) * 25);
+      ctx.fillStyle = `rgba(${r},${g},${b2},0.5)`;
+      ctx.fillRect(bx, bz, bw, bd);
+    }
 
     // Cops — pulsing blue dots
     if (Police.cops) {

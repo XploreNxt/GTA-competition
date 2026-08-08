@@ -7,6 +7,10 @@ const City = {
   MAP_SIZE: 2000,
   ROAD_WIDTH: 12,
   BLOCK: 70,
+  roadSpan: 2000, // traffic/peds wrap at half this
+  ROAD_W: 12,     // legacy alias (HUD / peds)
+  SIDEWALK: 4,    // sidewalk width
+  EXTENT: 14,     // blocks per half-map
 
   scene: null,
   groundY: 0,
@@ -88,9 +92,9 @@ const City = {
 
     // Road paths for AI
     this.roadPaths = [
-      { x1: -half, z1: 0, x2: half, z2: 0 },
-      { x1: -half, z1: loopZ, x2: half, z2: loopZ },
-      { x1: -half, z1: -loopZ, x2: half, z2: -loopZ },
+      { x1: -half, z1: 0, x2: half, z2: 0, w: this.ROAD_WIDTH },
+      { x1: -half, z1: loopZ, x2: half, z2: loopZ, w: loopW },
+      { x1: -half, z1: -loopZ, x2: half, z2: -loopZ, w: loopW },
     ];
   },
 
@@ -302,15 +306,17 @@ const City = {
   },
 
   randomRoad() {
-    const half = this.MAP_SIZE / 2;
     const roads = this.roadPaths;
     const r = roads[Math.floor(Math.random() * roads.length)];
     const t = Math.random();
+    const horizontal = r.z1 === r.z2;
+    const dir = Math.random() > 0.5 ? 1 : -1;
     return {
       x: r.x1 + (r.x2 - r.x1) * t,
       z: r.z1 + (r.z2 - r.z1) * t,
-      horizontal: true,
-      dir: Math.random() > 0.5 ? 1 : -1,
+      horizontal,
+      dir,
+      lane: (dir * r.w) / 4, // right-hand lane offset (along Z for horizontal roads)
     };
   },
 

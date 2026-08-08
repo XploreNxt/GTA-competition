@@ -1,118 +1,144 @@
 "use strict";
 
-// Vehicle — shared car factory for the player + traffic AI fleet.
+// Vehicle — loads the Audi R8 FBX model and uses it for all cars.
 
 const Vehicle = {
   scene: null,
-  _playerBumped: 0, // bumped traffic flags (read by Game for crimes)
-
-  // Shared geometries so many cars stay cheap.
-  _geo: null,
+  _playerBumped: 0,
+  _carTemplate: null,
+  _ready: false,
 
   init(scene) {
     this.scene = scene;
+    return this._loadModel();
   },
 
-  _geos() {
-    if (this._geo) return this._geo;
-    const g = {
-      body: new THREE.BoxGeometry(1.72, 0.4, 3.6),
-      box: new THREE.BoxGeometry(1.56, 0.16, 0.9),
-      wheel: new THREE.CylinderGeometry(0.34, 0.34, 0.26, 16),
-      rim: new THREE.CylinderGeometry(0.18, 0.18, 0.28, 8),
-      light: new THREE.BoxGeometry(0.34, 0.13, 0.1),
-      tail: new THREE.BoxGeometry(0.4, 0.12, 0.1),
-      windshield: new THREE.BoxGeometry(1.5, 0.11, 1.5),
-    };
-    this._geo = g;
+  _loadModel() {
+    return new Promise((resolve) => {
+      const loader = new THREE.FBXLoader();
+      loader.load("Assets/car/Models/Audi R8.fbx",
+        (obj) => {
+          try {
+            const box = new THREE.Box3().setFromObject(obj);
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const targetLen = 4.5;
+            const scale = targetLen / maxDim;
+            obj.scale.setScalar(scale);
+            obj.updateMatrixWorld(true);
+
+            const box2 = new THREE.Box3().setFromObject(obj);
+            const min = box2.min.clone().negate();
+            obj.position.copy(min);
+            obj.position.y = 0;
+            obj.updateMatrixWorld(true);
+
+            obj.traverse((child) => {
+              if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+              }
+            });
+
+            this._carTemplate = obj;
+            this._ready = true;
+            console.log("Audi R8 car model loaded, scale:", scale.toFixed(4));
+          } catch (e) {
+            console.error("Car model prepare failed:", e);
+            this._ready = false;
+          }
+          resolve();
+        },
+        undefined,
+        (err) => {
+          console.error("Car FBX load error:", err);
+          this._ready = false;
+          resolve();
+        }
+      );
+    });
+  },
+
+  _cloneCar(color) {
+    if (!this._ready || !this._carTemplate) return this._buildFallback(color);
+
+    const g = this._carTemplate.clone();
+    g.traverse((child) => {
+      if (child.isMesh) {
+        child.material = child.material.clone();
+        const name = (child.name || "").toLowerCase();
+        const matName = (child.material.name || "").toLowerCase();
+        const isGlass = name.includes("glass") || name.includes("window") || name.includes("windshield") ||
+          matName.includes("glass") || matName.includes("window") ||
+          (child.material.transparent && child.material.opacity < 0.8);
+        const isTire = name.includes("tire") || name.includes("wheel") || name.includes("tyre") ||
+          matName.includes("tire") || matName.includes("wheel");
+        if (!isGlass && !isTire) {
+          child.material.color.set(color);
+        }
+      }
+    });
     return g;
   },
 
-  _mats(color) {
-    return {
-      paint: new THREE.MeshPhysicalMaterial({ color, metalness: 0.85, roughness: 0.22, clearcoat: 1.0, clearcoatRoughness: 0.1 }),
-      paintDark: new THREE.MeshPhysicalMaterial({ color: 0x9c1818, metalness: 0.85, roughness: 0.3, clearcoat: 0.8 }),
-      glass: new THREE.MeshPhysicalMaterial({ color: 0x13181f, metalness: 0.1, roughness: 0.08, clearcoat: 0.7, transparent: true, opacity: 0.9 }),
-      chrome: new THREE.MeshStandardMaterial({ color: 0xcfd8e3, metalness: 1, roughness: 0.12 }),
-      tire: new THREE.MeshStandardMaterial({ color: 0x161616, roughness: 0.9 }),
-      grill: new THREE.MeshStandardMaterial({ color: 0x1c1e20, metalness: 0.8, roughness: 0.4 }),
-      lightW: new THREE.MeshStandardMaterial({ color: 0xfff6e0, emissive: 0xfff0c8, emissiveIntensity: 2.4 }),
-      lightR: new THREE.MeshStandardMaterial({ color: 0xff2222, emissive: 0xff2020, emissiveIntensity: 1.4 }),
-    };
-  },
-
-  // Build a car group. Returns the group with a .speed hint (for traffic).
-  // withLights: true adds SpotLight/PointLight (only for player/police car, not traffic).
-  buildCar(color, onRoad, withLights) {
+  _buildFallback(color) {
     const g = new THREE.Group();
-    const geos = this._geos();
-    const m = this._mats(color);
-    const rnd = Math.random();
+    const paintMat = new THREE.MeshLambertMaterial({ color });
+    const glassMat = new THREE.MeshLambertMaterial({ color: 0x111122, transparent: true, opacity: 0.7 });
+    const tireMat = new THREE.MeshLambertMaterial({ color: 0x161616 });
 
-    const body = new THREE.Mesh(geos.body, m.paint);
-    body.position.y = 0.6;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 4.2), paintMat);
+    body.position.y = 0.5;
     body.castShadow = true;
-
-    const hood = new THREE.Mesh(geos.box, m.paintDark);
-    hood.position.set(0, 0.82, 1.35);
-    const trunk = new THREE.Mesh(geos.box, m.paintDark);
-    trunk.position.set(0, 0.82, -1.3);
-
-    const cabin = new THREE.Mesh(new THREE.SphereGeometry(0.95, 10, 8), m.glass);
-    cabin.position.set(0, 0.95, 0.0);
-    cabin.scale.set(0.82, 0.5, 1.0);
-
-    const windshield = new THREE.Mesh(geos.windshield, m.glass);
-    windshield.position.set(0, 1.1, -0.05);
-    windshield.rotation.x = -0.28;
-
-    const hlL = new THREE.Mesh(geos.light, m.lightW);
-    hlL.position.set(-0.45, 0.66, 1.81);
-    const hlR = new THREE.Mesh(geos.light, m.lightW);
-    hlR.position.set(0.45, 0.66, 1.81);
-    const tlL = new THREE.Mesh(geos.tail, m.lightR);
-    tlL.position.set(-0.52, 0.66, -1.81);
-    const tlR = new THREE.Mesh(geos.tail, m.lightR);
-    tlR.position.set(0.52, 0.66, -1.81);
-
-    const mkWheel = (x, z) => {
-      const w = new THREE.Group();
-      const t = new THREE.Mesh(geos.wheel, m.tire);
-      t.rotation.x = Math.PI / 2;
-      const rim = new THREE.Mesh(geos.rim, m.chrome);
-      rim.rotation.x = Math.PI / 2;
-      w.add(t, rim);
-      w.position.set(x, 0.34, z);
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.5, 2.0), glassMat);
+    cabin.position.set(0, 1.05, -0.2);
+    const wheelGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.2, 12);
+    const mkW = (x, z) => {
+      const w = new THREE.Mesh(wheelGeo, tireMat);
+      w.rotation.x = Math.PI / 2;
+      w.position.set(x, 0.32, z);
       return w;
     };
+    g.add(body, cabin, mkW(-0.85, 1.2), mkW(0.85, 1.2), mkW(-0.85, -1.2), mkW(0.85, -1.2));
+    return g;
+  },
 
-    g.add(body, hood, trunk, cabin, windshield, hlL, hlR, tlL, tlR,
-      mkWheel(-0.85, 1.1), mkWheel(0.85, 1.1), mkWheel(-0.85, -1.1), mkWheel(0.85, -1.1));
+  buildCar(color, onRoad, withLights) {
+    const g = this._cloneCar(color);
+
+    const hlL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.05),
+      new THREE.MeshStandardMaterial({ color: 0xfff6e0, emissive: 0xfff0c8, emissiveIntensity: 2.4 }));
+    hlL.position.set(-0.55, 0.55, 2.15);
+    const hlR = hlL.clone();
+    hlR.position.x = 0.55;
+    const tlL = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.1, 0.05),
+      new THREE.MeshStandardMaterial({ color: 0xff2222, emissive: 0xff2020, emissiveIntensity: 1.4 }));
+    tlL.position.set(-0.55, 0.55, -2.15);
+    const tlR = tlL.clone();
+    tlR.position.x = 0.55;
+    g.add(hlL, hlR, tlL, tlR);
 
     if (withLights) {
-      // Headlights (spotlights) — only for player/police car
       const headL = new THREE.SpotLight(0xfff0cc, 0, 22, 0.5, 0.6, 1.5);
-      headL.position.set(-0.45, 0.7, 1.9);
-      headL.target.position.set(-0.45, 0, 12);
+      headL.position.set(-0.55, 0.6, 2.2);
+      headL.target.position.set(-0.55, 0, 14);
       g.add(headL, headL.target);
 
       const headR = new THREE.SpotLight(0xfff0cc, 0, 22, 0.5, 0.6, 1.5);
-      headR.position.set(0.45, 0.7, 1.9);
-      headR.target.position.set(0.45, 0, 12);
+      headR.position.set(0.55, 0.6, 2.2);
+      headR.target.position.set(0.55, 0, 14);
       g.add(headR, headR.target);
 
-      // Taillights (dim red glow)
       const tailL = new THREE.PointLight(0xff2222, 0, 6, 2);
-      tailL.position.set(-0.52, 0.66, -1.9);
+      tailL.position.set(-0.55, 0.55, -2.2);
       g.add(tailL);
       const tailR = new THREE.PointLight(0xff2222, 0, 6, 2);
-      tailR.position.set(0.52, 0.66, -1.9);
+      tailR.position.set(0.55, 0.55, -2.2);
       g.add(tailR);
 
       g.userData.headlights = [headL, headR];
       g.userData.taillights = [tailL, tailR];
     } else {
-      // Traffic cars: emissive meshes only, no GPU light objects
       g.userData.headlights = null;
       g.userData.taillights = null;
     }
@@ -121,8 +147,45 @@ const Vehicle = {
     return g;
   },
 
-  // ---------- Traffic ----------
   cars: [],
+  parked: [],
+
+  spawnParked(count) {
+    const palette = [0x8b8b8b, 0x4a6d8c, 0x6b8cae, 0x9c1818, 0x2f2f2f, 0xc9c9c9, 0x5a7a9a, 0x2c6fbb];
+    const half = City.MAP_SIZE / 2;
+    const rw = City.ROAD_WIDTH / 2;
+
+    const add = (x, z, yaw) => {
+      const car = this.buildCar(palette[Math.floor(Math.random() * palette.length)], false, false);
+      car.position.set(x, 0, z);
+      car.rotation.y = yaw + (Math.random() - 0.5) * 0.2;
+      this.parked.push(car);
+    };
+
+    const nMain = Math.max(1, Math.floor(count / 4));
+    for (const side of [-1, 1]) {
+      for (let i = 0; i < nMain; i++) {
+        const x = -half + 90 + (i + Math.random() * 0.7) * ((half * 2 - 180) / nMain);
+        add(x, side * (rw + 1 + Math.random() * 1.5), side > 0 ? Math.PI / 2 : -Math.PI / 2);
+      }
+    }
+
+    for (const loopZ of [350, -350]) {
+      for (const side of [-1, 1]) {
+        for (let i = 0; i < 2; i++) {
+          const x = -half + 200 + (i + Math.random() * 0.7) * ((half * 2 - 400) / 2);
+          add(x, loopZ + side * (4.5 + Math.random() * 1.5), side > 0 ? Math.PI / 2 : -Math.PI / 2);
+        }
+      }
+    }
+
+    for (const side of [-1, 1]) {
+      for (let i = 0; i < 2; i++) {
+        const z = -320 + (i + Math.random() * 0.7) * 640;
+        add(side * (850 + 4.5 + Math.random() * 1.5), z, Math.random() > 0.5 ? 0 : Math.PI);
+      }
+    }
+  },
 
   spawnTraffic(count) {
     const palette = [0x2c6fbb, 0x2f9e44, 0xe0d94f, 0xf2f2f2, 0x8b2fc9, 0xc95a2f, 0x2a2a2a, 0x6fb7a5];
@@ -131,9 +194,11 @@ const Vehicle = {
       const car = this.buildCar(palette[i % palette.length], false, false);
       car.position.set(r.x, 0, r.z);
       if (r.horizontal) {
-        car.rotation.y = r.dir > 0 ? Math.PI : 0; // drive +X or -X
+        car.position.z += r.lane;
+        car.rotation.y = r.dir > 0 ? -Math.PI / 2 : Math.PI / 2;
       } else {
-        car.rotation.y = r.dir > 0 ? Math.PI / 2 : -Math.PI / 2; // drive +Z or -Z
+        car.position.x -= r.lane;
+        car.rotation.y = r.dir > 0 ? 0 : Math.PI;
       }
       car.userData = {
         horizontal: r.horizontal,
@@ -146,10 +211,9 @@ const Vehicle = {
 
   _trafficAccum: 0,
 
-  // Drive all traffic cars straight along their road, wrap at world edges.
   updateTraffic(dt) {
     this._trafficAccum += dt;
-    if (this._trafficAccum < 0.05) return; // ~20fps update
+    if (this._trafficAccum < 0.05) return;
     dt = this._trafficAccum;
     this._trafficAccum = 0;
     const span = City.roadSpan;
@@ -169,7 +233,6 @@ const Vehicle = {
       }
     }
 
-    // Headlights/taillights intensity from night amount
     for (const car of this.cars) {
       if (car.userData.headlights) {
         for (const hl of car.userData.headlights) hl.intensity = this._headlightI;
@@ -177,7 +240,6 @@ const Vehicle = {
       }
     }
 
-    // Crime detection: did the player's car shove a traffic car this frame?
     if (Player.inCar && Player.car) {
       const pc = Player.car.position;
       for (const car of this.cars) {
