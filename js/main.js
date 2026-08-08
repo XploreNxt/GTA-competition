@@ -202,8 +202,8 @@ const Game = {
     this.renderer.outputEncoding = THREE.sRGBEncoding;
 
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(0xe0c9a6, 80, 300); // tighter fog culls distant objects
-    this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500); // reduced far plane
+    this.scene.fog = new THREE.Fog(0xc8d8e8, 200, 800); // fog for 2km map
+    this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1500); // far plane for 2km
 
     this._createSky();
     this._createEnvironment();
@@ -278,26 +278,31 @@ const Game = {
 
 // Phase 1 world: city, traffic, player.
   async _createWorld() {
-    this._setLoading(15, "Building the city grid...");
-    City.init(this.scene);
+    this._setLoading(10, "Loading building models...");
+    await new Promise((resolve, reject) => {
+      City.init(this.scene, resolve);
+      setTimeout(() => reject(new Error("City load timeout")), 30000);
+    });
 
-    this._setLoading(30, "Spawning traffic...");
+    this._setLoading(40, "Spawning traffic...");
     Vehicle.init(this.scene);
-    Vehicle.spawnTraffic(20); // reduced from 42 for perf
+    Vehicle.spawnTraffic(15);
 
-    this._setLoading(40, "Loading character models...");
-    await Characters.load((p, tip) => this._setLoading(40 + p * 0.5, tip));
+    this._setLoading(50, "Loading character models...");
+    if (Characters.load) {
+      await Characters.load((p, tip) => this._setLoading(50 + p * 0.3, tip));
+    }
 
-    this._setLoading(92, "Populating the city...");
+    this._setLoading(80, "Populating the city...");
     Peds.init(this.scene);
-    Peds.spawn(20); // reduced from 40 for perf
+    Peds.spawn(15);
 
     Police.init(this.scene);
     Mission.init(this.scene);
     Particles.init(this.scene);
     Weather.init(this.scene);
 
-    Player.spawn(City.BLOCK * 2, 0); // on a road centerline
+    Player.spawn(0, 50); // on main road, north side
     this.scene.add(Player.person);
 
     HUD.setMoney(1500);
@@ -307,7 +312,7 @@ const Game = {
 
   _createSky() {
     this.sky = new THREE.Sky();
-    this.sky.scale.setScalar(1200);
+    this.sky.scale.setScalar(4000);
     const u = this.sky.material.uniforms;
     u.turbidity.value = 9;
     u.rayleigh.value = 1.1;
@@ -388,19 +393,18 @@ const Game = {
   },
 
   _createGround() {
-    const tex = makeAsphaltTexture(512, 512);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(70, 70);
-
-    this._groundMat = new THREE.MeshLambertMaterial({ map: tex }); // Lambert is faster than Standard
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), this._groundMat); // smaller ground
+    // Ground is now handled by City.js for the 2km map
+    // Keep a large invisible ground for shadows
+    this._groundMat = new THREE.MeshLambertMaterial({ color: 0x4a7a3a });
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), this._groundMat);
     ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.1;
     ground.receiveShadow = true;
     this.scene.add(ground);
   },
 
   _createOcean() {
-    const waterGeo = new THREE.PlaneGeometry(2400, 2400, 32, 32); // reduced segments for perf
+    const waterGeo = new THREE.PlaneGeometry(3000, 3000, 32, 32); // larger for 2km map
     const waterMat = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },

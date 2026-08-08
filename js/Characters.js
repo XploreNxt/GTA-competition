@@ -103,15 +103,33 @@ const Characters = {
   // Deep-clone the template with its own skeleton (bones cloned per entity).
   make(skinIndex) {
     const g = this.model.clone();
-    const boneMap = new Map();
 
     g.traverse((o) => {
       if (o.isSkinnedMesh && o.skeleton) {
-        if (boneMap.size === 0) {
-          o.skeleton.bones.forEach((b) => boneMap.set(b, b.clone()));
+        const srcSkel = o.skeleton;
+        const map = new Map();
+
+        // Rebuild the bone hierarchy INSIDE this group: cloning bones one by one
+        // would leave them as detached roots with stale template-space matrices,
+        // which collapses the skinned mesh. Clone each bone as a child of the
+        // clone of its original parent, then attach the root bones to the group.
+        const buildTree = (src, parentClone) => {
+          const c = new THREE.Bone().copy(src);
+          parentClone.add(c);
+          map.set(src, c);
+          for (const ch of src.children) {
+            if (ch.isBone) buildTree(ch, c);
+          }
+          return c;
+        };
+
+        for (const root of srcSkel.bones) {
+          if (!srcSkel.bones.includes(root.parent)) buildTree(root, g);
         }
-        const bones = o.skeleton.bones.map((b) => boneMap.get(b));
-        o.skeleton = new THREE.Skeleton(bones, o.skeleton.boneInverses.map((m) => m.clone()));
+
+        // Same order as the original skeleton so skinIndex weights line up.
+        const bones = srcSkel.bones.map((b) => map.get(b));
+        o.skeleton = new THREE.Skeleton(bones, srcSkel.boneInverses.map((m) => m.clone()));
         o.bind(o.skeleton, o.bindMatrix.clone());
 
         const mats = Array.isArray(o.material) ? o.material : [o.material];

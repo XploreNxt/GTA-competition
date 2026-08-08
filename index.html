@@ -169,24 +169,70 @@
   <script>
   if (location.search.indexOf("debug") !== -1) {
     function devStats(tag) {
+      var m = null;
+      if (Player.person) Player.person.traverse(function (o) { if (o.isMesh && !m) m = o; });
+      var bone = null;
+      if (m) {
+        for (var bi = 0; bi < m.skeleton.bones.length; bi++) {
+          var b = m.skeleton.bones[bi];
+          if (isFinite(b.position.x) && isFinite(b.position.y) && isFinite(b.position.z)) continue;
+          bone = bi + ":" + b.name;
+          break;
+        }
+        if (!bone) bone = "all-finite";
+      }
+      var tmpl = null;
+      if (Characters.model) Characters.model.traverse(function (o) { if (o.isMesh && !tmpl) tmpl = o; });
+      var tbone = null;
+      if (tmpl) {
+        for (var ti = 0; ti < tmpl.skeleton.bones.length; ti++) {
+          var tb = tmpl.skeleton.bones[ti];
+          if (isFinite(tb.position.x) && isFinite(tb.position.y) && isFinite(tb.position.z)) continue;
+          tbone = ti + ":" + tb.name;
+          break;
+        }
+        if (!tbone) tbone = "all-finite";
+      }
       console.log("DEVSTAT " + tag + " " + JSON.stringify({
-        ready: Characters.ready,
-        peds: Peds.list.length,
-        pedsVis: Peds.list.filter(function (p) { return p.visible; }).length,
-        anim: Player.person ? Player.person.userData.anim : null,
-        px: Player.person ? +Player.person.position.x.toFixed(1) : null,
-        py: Player.person ? +Player.person.position.y.toFixed(2) : null,
-        inCar: Player.inCar,
         state: Game.state,
+        badBone: bone,
+        tmplBadBone: tbone,
+        py: Player.person ? +Player.person.position.y.toFixed(2) : null,
       }));
+    }
+
+    function readback(tag, x0, y0, w, h) {
+      var gl = Game.renderer.getContext();
+      var W = gl.drawingBufferWidth, H = gl.drawingBufferHeight;
+      var px = new Uint8Array(w * h * 4);
+      gl.readPixels(Math.floor(x0 * W), Math.floor(y0 * H), w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      var r = 0, g = 0, b = 0, distinct = {};
+      for (var i = 0; i < px.length; i += 4) {
+        r += px[i]; g += px[i + 1]; b += px[i + 2];
+        var k = (px[i] >> 4) * 16 + (px[i + 1] >> 4) * 4 + (px[i + 2] >> 4);
+        distinct[k] = 1;
+      }
+      var n = px.length / 4;
+      console.log("READBACK " + tag + " avg=[" + (r / n).toFixed(0) + "," + (g / n).toFixed(0) + "," + (b / n).toFixed(0) + "] bins=" + Object.keys(distinct).length);
     }
     setTimeout(function () { devStats("t0"); }, 4000);
     setTimeout(function () { window.dispatchEvent(new KeyboardEvent("keydown", { code: "Enter", key: "Enter" })); }, 5000);
-    setTimeout(function () { Input.keys.KeyW = true; }, 7000);
-    setTimeout(function () { Input.keys.KeyW = false; devStats("t1"); }, 9500);
-    setTimeout(function () { Input.keys.Space = true; }, 11000);
-    setTimeout(function () { Input.keys.Space = false; devStats("t2"); }, 11800);
-    setTimeout(function () { devStats("t3"); console.log("DEVDONE"); }, 13000);
+    setTimeout(function () {
+      function renderOnce() {
+        var rt = new THREE.WebGLRenderTarget(128, 128);
+        Game.renderer.setRenderTarget(rt);
+        Game.renderer.render(Game.scene, Game.camera);
+        Game.renderer.setRenderTarget(null);
+        var ri = Game.renderer.info.render;
+        return ri.calls + "/" + ri.triangles;
+      }
+      var before = renderOnce();
+      Player.person.visible = false;
+      var hidden = renderOnce();
+      Player.person.visible = true;
+      console.log("VISCHECK visible=" + before + " playerHidden=" + hidden);
+      console.log("DEVDONE");
+    }, 10500);
   }
   </script>
 </body>
