@@ -11,7 +11,7 @@ const Graphics = {
   finalShader: {
     uniforms: {
       tDiffuse: { value: null },
-      intensity: { value: 0.92 },
+      intensity: { value: 0.82 },
       grainAmount: { value: 0.03 },
       vignetteStrength: { value: 0.6 },
     },
@@ -86,11 +86,7 @@ const Game = {
   renderer: null,
   composer: null,
   sky: null,
-
-  car: null,
-  carSpeed: 0.16,
-  carYaw: 0,
-  carTurnRate: 0.045,
+  money: 1500,
 
   orbitYaw: 0.9,
   orbitPitch: 0.5,
@@ -122,8 +118,7 @@ const Game = {
     this._createEnvironment();
     this._createLights();
     this._createGround();
-    this._createCar();
-    this._createProbes();
+    this._createWorld();
     this._createPostFX();
 
     window.addEventListener("resize", () => this._onResize());
@@ -131,7 +126,21 @@ const Game = {
     window.addEventListener("mouseup", () => { this._dragLast = null; });
     window.addEventListener("mousemove", (e) => this._onDragMove(e));
 
-    HUD.setObjective("WASD drive — drag orbit");
+    HUD.setObjective("WASD move — E enter car — drag orbit");
+  },
+
+  // Phase 1 world: city, traffic, player.
+  _createWorld() {
+    City.init(this.scene);
+
+    Vehicle.init(this.scene);
+    Vehicle.spawnTraffic(42);
+
+    Player.spawn(City.BLOCK * 2, 0); // on a road centerline
+    this.scene.add(Player.person);
+
+    HUD.setMoney(1500);
+    HUD.setMission("Vice City — Phase 1");
   },
 
   _createSky() {
@@ -191,7 +200,7 @@ const Game = {
   },
 
   _createLights() {
-    this.sunLight = new THREE.DirectionalLight(0xffe7c0, 2.2);
+    this.sunLight = new THREE.DirectionalLight(0xffe7c0, 1.9);
     this.sunLight.position.copy(Graphics.sunDir).normalize().multiplyScalar(200);
     this.sunLight.castShadow = true;
     this.sunLight.shadow.mapSize.set(2048, 2048);
@@ -204,7 +213,7 @@ const Game = {
     this.sunLight.shadow.bias = -0.0005;
     this.scene.add(this.sunLight);
 
-    const hemi = new THREE.HemisphereLight(0xbfe0ff, 0x8a7a55, 0.5);
+    const hemi = new THREE.HemisphereLight(0xbfe0ff, 0x8a7a55, 0.42);
     this.scene.add(hemi);
   },
 
@@ -222,77 +231,11 @@ const Game = {
     this.scene.add(ground);
   },
 
-  _createCar() {
-    const g = new THREE.Group();
-    const paint = new THREE.MeshPhysicalMaterial({ color: 0xd4262c, metalness: 0.85, roughness: 0.22, clearcoat: 1.0, clearcoatRoughness: 0.1 });
-    const paintDark = new THREE.MeshPhysicalMaterial({ color: 0x9c1818, metalness: 0.85, roughness: 0.3, clearcoat: 0.8 });
-    const glass = new THREE.MeshPhysicalMaterial({ color: 0x13181f, metalness: 0.1, roughness: 0.08, clearcoat: 0.7, transparent: true, opacity: 0.9 });
-    const chrome = new THREE.MeshStandardMaterial({ color: 0xcfd8e3, metalness: 1, roughness: 0.12 });
-    const tire = new THREE.MeshStandardMaterial({ color: 0x161616, roughness: 0.9 });
-    const grillMat = new THREE.MeshStandardMaterial({ color: 0x1c1e20, metalness: 0.8, roughness: 0.4 });
-    const lightW = new THREE.MeshStandardMaterial({ color: 0xfff6e0, emissive: 0xfff0c8, emissiveIntensity: 2.4 });
-    const lightR = new THREE.MeshStandardMaterial({ color: 0xff2222, emissive: 0xff2020, emissiveIntensity: 1.4 });
-
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1.72, 0.4, 3.6), paint);
-    body.position.y = 0.6;
-    body.castShadow = true;
-
-    const cabin = new THREE.Mesh(new THREE.SphereGeometry(0.9, 12, 8), glass);
-    cabin.position.set(0, 0.95, 0.0);
-    cabin.scale.set(0.82, 0.5, 1.0);
-
-    const hood = new THREE.Mesh(new THREE.BoxGeometry(1.56, 0.16, 0.9), paintDark);
-    hood.position.set(0, 0.82, 1.35);
-    const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.56, 0.16, 0.8), paintDark);
-    trunk.position.set(0, 0.82, -1.3);
-
-    const spoiler = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.06, 0.3), grillMat);
-    spoiler.position.set(0, 1.0, -1.75);
-
-    const grille = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.26, 0.1), grillMat);
-    grille.position.set(0, 0.5, 1.81);
-
-    const windshield = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.11, 1.5), glass);
-    windshield.position.set(0, 1.1, -0.05);
-    windshield.rotation.x = -0.28;
-
-    const hlL = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.13, 0.1), lightW);
-    hlL.position.set(-0.45, 0.66, 1.81);
-    const hlR = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.13, 0.1), lightW);
-    hlR.position.set(0.45, 0.66, 1.81);
-
-    const tlL = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.12, 0.1), lightR);
-    tlL.position.set(-0.52, 0.66, -1.81);
-    const tlR = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.12, 0.1), lightR);
-    tlR.position.set(0.52, 0.66, -1.81);
-
-    const mkWheel = (x, z) => {
-      const w = new THREE.Group();
-      const t = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.26, 18), tire);
-      t.rotation.x = Math.PI / 2;
-      const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.28, 8), chrome);
-      rim.rotation.x = Math.PI / 2;
-      w.add(t, rim);
-      w.position.set(x, 0.34, z);
-      return w;
-    };
-
-    g.add(body, hood, trunk, spoiler, grille, cabin, windshield, hlL, hlR, tlL, tlR,
-      mkWheel(-0.85, 1.1), mkWheel(0.85, 1.1), mkWheel(-0.85, -1.1), mkWheel(0.85, -1.1));
-
-    this.car = g;
-    this.scene.add(g);
-  },
-
-  _createProbes() {
-    // Placeholder — Phase 1 adds city, traffic lights etc.
-  },
-
   _createPostFX() {
     const size = new THREE.Vector2(window.innerWidth, window.innerHeight);
     const composer = this.composer = new THREE.EffectComposer(this.renderer);
     composer.addPass(new THREE.RenderPass(this.scene, this.camera));
-    this.bloom = new THREE.UnrealBloomPass(size, 0.55, 0.5, 0.82);
+    this.bloom = new THREE.UnrealBloomPass(size, 0.4, 0.5, 0.95);
     composer.addPass(this.bloom);
     const tonePass = new THREE.ShaderPass(Graphics.finalShader);
     composer.addPass(tonePass);
@@ -321,21 +264,14 @@ const Game = {
   },
 
   update(dt) {
-    const throttle = Input.axisV();
-    const steer = Input.axisH();
-    const dir = Math.sign(throttle);
-    this.carYaw += steer * this.carTurnRate * dir * Math.min(1, Math.abs(throttle));
-    const move = throttle * this.carSpeed * dt * 60;
-    const sin = Math.sin(-this.carYaw);
-    const cos = Math.cos(-this.carYaw);
-    this.car.position.x += sin * move;
-    this.car.position.z += cos * move;
-    this.car.rotation.y = this.carYaw;
+    Player.update(dt);
+    Vehicle.updateTraffic(dt);
+    HUD.setMoney(Math.floor(Game.money || 0));
   },
 
   updateCamera() {
-    const pos = this.car.position;
-    const hubYaw = this.carYaw + this.orbitYaw + Math.PI;
+    const pos = Player.pos();
+    const hubYaw = (Player.inCar ? Player.yaw : 0) + this.orbitYaw + Math.PI;
     const cx = pos.x + Math.sin(-hubYaw) * this.orbitDist * Math.cos(this.orbitPitch);
     const cz = pos.z + Math.cos(-hubYaw) * this.orbitDist * Math.cos(this.orbitPitch);
     const cy = pos.y + 2.5 + Math.sin(this.orbitPitch) * this.orbitDist;
