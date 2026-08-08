@@ -290,7 +290,12 @@ const Game = {
 
     this._setLoading(50, "Loading character models...");
     if (Characters.load) {
-      await Characters.load((p, tip) => this._setLoading(50 + p * 0.3, tip));
+      try {
+        await Characters.load((p, tip) => this._setLoading(50 + p * 0.3, tip));
+      } catch (e) {
+        console.warn("Character models failed to load, using fallback:", e);
+        Characters.ready = false;
+      }
     }
 
     this._setLoading(80, "Populating the city...");
