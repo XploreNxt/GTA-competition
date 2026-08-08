@@ -210,11 +210,15 @@ const Game = {
     this._createLights();
     this._createGround();
     this._createOcean();
-    this._createWorld();
     this._createPostFX();
 
-    this.clock.stop();
-    this._loadingScreen.classList.add("hidden");
+    this._createWorld().then(() => {
+      this.clock.stop();
+      this._loadingScreen.classList.add("hidden");
+    }, (e) => {
+      console.error("World creation failed:", e);
+      this._setLoading(100, "Failed to load world");
+    });
   },
 
   _setLoading(pct, tip) {
@@ -273,30 +277,32 @@ const Game = {
   },
 
 // Phase 1 world: city, traffic, player.
-  _createWorld() {
-    try {
-      City.init(this.scene);
+  async _createWorld() {
+    this._setLoading(15, "Building the city grid...");
+    City.init(this.scene);
 
+    this._setLoading(30, "Spawning traffic...");
     Vehicle.init(this.scene);
     Vehicle.spawnTraffic(20); // reduced from 42 for perf
 
+    this._setLoading(40, "Loading character models...");
+    await Characters.load((p, tip) => this._setLoading(40 + p * 0.5, tip));
+
+    this._setLoading(92, "Populating the city...");
     Peds.init(this.scene);
     Peds.spawn(20); // reduced from 40 for perf
 
-      Police.init(this.scene);
-      Mission.init(this.scene);
-      Particles.init(this.scene);
-      Weather.init(this.scene);
+    Police.init(this.scene);
+    Mission.init(this.scene);
+    Particles.init(this.scene);
+    Weather.init(this.scene);
 
-      Player.spawn(City.BLOCK * 2, 0); // on a road centerline
-      this.scene.add(Player.person);
+    Player.spawn(City.BLOCK * 2, 0); // on a road centerline
+    this.scene.add(Player.person);
 
-      HUD.setMoney(1500);
-      HUD.setMission("Vice City");
-    } catch (e) {
-      console.error("World creation failed:", e);
-      throw e;
-    }
+    HUD.setMoney(1500);
+    HUD.setMission("Vice City");
+    this._setLoading(100, "Ready");
   },
 
   _createSky() {
@@ -506,6 +512,7 @@ const Game = {
     }
     Mission.update(dt);
     Player.update(dt);
+    Characters.updateMixers(dt);
     Vehicle.updateTraffic(dt);
     Peds.update(dt, Player.pos(), Player.inCar);
     Police.update(dt, Player.pos().x, Player.pos().z);

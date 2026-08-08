@@ -103,7 +103,7 @@
       <div class="controls-grid">
         <div class="control-item"><span class="key">W A S D</span><span class="action">Move</span></div>
         <div class="control-item"><span class="key">E</span><span class="action">Enter / Exit Car</span></div>
-        <div class="control-item"><span class="key">SPACE</span><span class="action">Handbrake</span></div>
+        <div class="control-item"><span class="key">SPACE</span><span class="action">Handbrake / Jump</span></div>
         <div class="control-item"><span class="key">MOUSE</span><span class="action">Orbit Camera</span></div>
         <div class="control-item"><span class="key">ESC</span><span class="action">Pause</span></div>
       </div>
@@ -127,7 +127,7 @@
       <div class="controls-list">
         <div class="control-row"><span class="key-lg">W A S D</span><span>Drive / Walk</span></div>
         <div class="control-row"><span class="key-lg">E</span><span>Enter / Exit Vehicle</span></div>
-        <div class="control-row"><span class="key-lg">SPACE</span><span>Handbrake</span></div>
+        <div class="control-row"><span class="key-lg">SPACE</span><span>Handbrake / Jump</span></div>
         <div class="control-row"><span class="key-lg">MOUSE DRAG</span><span>Orbit Camera</span></div>
         <div class="control-row"><span class="key-lg">ESC</span><span>Pause / Resume</span></div>
       </div>
@@ -146,8 +146,12 @@
   <script src="js/vendor/FilmPass.js"></script>
   <script src="js/vendor/FXAAShader.js"></script>
   <script src="js/vendor/Sky.js"></script>
+  <script src="js/vendor/FBXLoader.js"></script>
+  <script src="js/vendor/fflate.min.js"></script>
 
   <!-- Game code -->
+  <script src="js/EmbeddedAssets.js"></script>
+  <script src="js/Characters.js"></script>
   <script src="js/Input.js"></script>
   <script src="js/AudioFX.js"></script>
   <script src="js/HUD.js"></script>
@@ -160,5 +164,30 @@
   <script src="js/Particles.js"></script>
   <script src="js/Weather.js"></script>
   <script src="js/main.js"></script>
+
+  <!-- Dev/test hook: only active with ?debug in the URL (normal play unaffected) -->
+  <script>
+  if (location.search.indexOf("debug") !== -1) {
+    function devStats(tag) {
+      console.log("DEVSTAT " + tag + " " + JSON.stringify({
+        ready: Characters.ready,
+        peds: Peds.list.length,
+        pedsVis: Peds.list.filter(function (p) { return p.visible; }).length,
+        anim: Player.person ? Player.person.userData.anim : null,
+        px: Player.person ? +Player.person.position.x.toFixed(1) : null,
+        py: Player.person ? +Player.person.position.y.toFixed(2) : null,
+        inCar: Player.inCar,
+        state: Game.state,
+      }));
+    }
+    setTimeout(function () { devStats("t0"); }, 4000);
+    setTimeout(function () { window.dispatchEvent(new KeyboardEvent("keydown", { code: "Enter", key: "Enter" })); }, 5000);
+    setTimeout(function () { Input.keys.KeyW = true; }, 7000);
+    setTimeout(function () { Input.keys.KeyW = false; devStats("t1"); }, 9500);
+    setTimeout(function () { Input.keys.Space = true; }, 11000);
+    setTimeout(function () { Input.keys.Space = false; devStats("t2"); }, 11800);
+    setTimeout(function () { devStats("t3"); console.log("DEVDONE"); }, 13000);
+  }
+  </script>
 </body>
 </html>

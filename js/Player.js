@@ -23,27 +23,19 @@ const Player = {
   alive: true,
 
   _eLast: false,
+  _vy: 0,
+  _jumpHeld: false,
 
   spawn(x, z) {
-    const g = new THREE.Group();
-    const skin = new THREE.MeshStandardMaterial({ color: 0x4a7abb, roughness: 0.8 });
-    const pants = new THREE.MeshStandardMaterial({ color: 0x2b2f36, roughness: 0.9 });
-
-    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.34, 0.7, 8), skin);
-    torso.position.y = 1.35;
-    torso.castShadow = true;
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), skin);
-    head.position.y = 1.9;
-    head.castShadow = true;
-    const legs = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.7, 6), pants);
-    legs.position.y = 0.7;
-    legs.castShadow = true;
-    g.add(torso, head, legs);
+    const g = Characters.make(0);
     g.position.set(x, 0, z);
+    Characters.track(g);
+    Characters.playAnim(g, "idle");
     this.person = g;
     this.yaw = 0;
     this.health = this.maxHealth;
     this.alive = true;
+    this._vy = 0;
   },
 
   damage(v) {
@@ -154,6 +146,7 @@ const Player = {
     }
     this.speed = 0;
     this.person.visible = true;
+    Characters.playAnim(this.person, "idle");
     AudioFX.whoosh();
   },
 
@@ -178,18 +171,52 @@ const Player = {
   },
 
   _updateFoot(dt) {
-    const ax = Input.axisH();
-    const az = Input.axisV();
-    if (ax !== 0 || az !== 0) {
-      const len = Math.sqrt(ax * ax + az * az) || 1;
-      const nx = ax / len, nz = az / len;
-      this.person.position.x += nx * this.footSpeed * dt;
-      this.person.position.z += nz * this.footSpeed * dt;
-      this.person.rotation.y = Math.atan2(nx, nz);
+    // Camera-relative movement: W goes where camera faces
+    // Camera forward (from camera to player) = (sin(hubYaw), -cos(hubYaw))
+    // For foot: hubYaw = orbitYaw + PI, so forward = (-sin(orbitYaw), cos(orbitYaw))
+    const camAngle = Game.orbitYaw;
+    const fwdX = -Math.sin(camAngle);
+    const fwdZ = Math.cos(camAngle);
+    const rightX = Math.cos(camAngle);
+    const rightZ = Math.sin(camAngle);
+
+    const inputV = Input.axisV(); // W=+1, S=-1
+    const inputH = Input.axisH(); // D=+1, A=-1
+
+    const dx = (fwdX * inputV + rightX * inputH) * this.footSpeed * dt;
+    const dz = (fwdZ * inputV + rightZ * inputH) * this.footSpeed * dt;
+
+    this.person.position.x += dx;
+    this.person.position.z += dz;
+
+    if (inputV !== 0 || inputH !== 0) {
+      this.person.rotation.y = Math.atan2(dx, dz);
     }
+
     const res = City.resolveCollision(this.person.position.x, this.person.position.z, 0.4);
     this.person.position.x = res.x;
     this.person.position.z = res.z;
+
+    // Jump on SPACE (on foot).
+    const jump = Input.any("Space");
+    if (jump && !this._jumpHeld && this.person.position.y <= 0.01) {
+      this._vy = 4.6;
+    }
+    this._jumpHeld = jump;
+    if (this.person.position.y > 0 || this._vy > 0) {
+      this._vy -= 12 * dt;
+      this.person.position.y = Math.max(0, this.person.position.y + this._vy * dt);
+      if (this.person.position.y <= 0.01 && this._vy < 0) {
+        this.person.position.y = 0;
+        this._vy = 0;
+      }
+    }
+
+    // Animate: jump while airborne, run while moving, idle otherwise.
+    const moving = inputV !== 0 || inputH !== 0;
+    if (this.person.position.y > 0.01) Characters.playAnim(this.person, "jump");
+    else if (moving) Characters.playAnim(this.person, "run", 0.9 + Math.min(0.4, Math.hypot(inputV, inputH) * 0.4));
+    else Characters.playAnim(this.person, "idle");
   },
 
   _updateCar(dt) {
@@ -212,13 +239,20 @@ const Player = {
 
     if (handbrake) this.speed *= Math.max(0, 1 - 8 * dt);
 
+    // Steering rotates the car (camera follows via orbitYaw)
     const dir = Math.sign(this.speed);
     this.yaw -= steer * this.turnRate * dt * dir * Math.min(1, Math.abs(this.speed) / 9 + 0.2);
-
     this.car.rotation.y = this.yaw;
+
+    // Camera-relative movement: car moves in camera's forward direction
+    // hubYaw = yaw + orbitYaw + PI, forward = (sin(hubYaw), -cos(hubYaw))
+    const camAngle = this.yaw + Game.orbitYaw;
+    const fwdX = -Math.sin(camAngle);
+    const fwdZ = Math.cos(camAngle);
+
     const move = this.speed * dt;
-    this.car.position.x += Math.sin(-this.yaw) * move;
-    this.car.position.z += Math.cos(-this.yaw) * move;
+    this.car.position.x += fwdX * move;
+    this.car.position.z += fwdZ * move;
 
     // Particles: tire smoke on handbrake/braking
     if (handbrake && Math.abs(this.speed) > 3) {

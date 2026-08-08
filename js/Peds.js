@@ -1,16 +1,13 @@
 "use strict";
 
 // Peds — sidewalk pedestrians. They wander lanes, flee from the player's
-// car, and get knocked back when hit. Visually cheap: shared parts, few mats.
+// car, and get knocked back when hit. Full skinned characters + animations.
 
 const Peds = {
   list: [],
   scene: null,
   count: 34,
   _hits: 0, // peds struck by the player this frame (read by Game for crimes)
-
-  // Reusable visuals
-  _parts: null,
 
   _rand() {
     const x = Math.sin(this._seed++ * 12.9898) * 43758.5453;
@@ -20,15 +17,6 @@ const Peds = {
 
   init(scene) {
     this.scene = scene;
-    // shared parts
-    const bodyGeo = new THREE.CylinderGeometry(0.22, 0.26, 0.6, 8);
-    const headGeo = new THREE.SphereGeometry(0.2, 8, 6);
-    const shGeos = { body: bodyGeo, head: headGeo };
-    this._parts = shGeos;
-
-    // shirt palette
-    this.shirtColors = [0xd64545, 0x4a7abb, 0x2f9e44, 0xd9b23f, 0x8b5fd0, 0xe8e8e8, 0x333333, 0xc26a2a];
-    this.skinColors = [0xd9a066, 0xc98d5f, 0xb97a4d, 0x8a5f3d, 0xf2c79a];
   },
 
   spawn(nTotal) {
@@ -36,22 +24,9 @@ const Peds = {
   },
 
   _spawnOne() {
-    const g = new THREE.Group();
-    const bodyMat = new THREE.MeshStandardMaterial({
-      color: this.shirtColors[Math.floor(Math.random() * this.shirtColors.length)],
-      roughness: 0.85,
-    });
-    const skinMat = new THREE.MeshStandardMaterial({
-      color: this.skinColors[Math.floor(Math.random() * this.skinColors.length)],
-      roughness: 0.8,
-    });
-    const body = new THREE.Mesh(this._parts.body, bodyMat);
-    body.position.y = 1.05;
-    body.castShadow = true;
-    const head = new THREE.Mesh(this._parts.head, skinMat);
-    head.position.y = 1.5;
-    head.castShadow = true;
-    g.add(body, head);
+    const g = Characters.make(Math.floor(Math.random() * Characters.skinCount()));
+    Characters.track(g);
+    Characters.playAnim(g, "idle");
 
     // Pick a valid sidewalk lane + direction.
     const lane = this._randomLane();
@@ -134,6 +109,7 @@ const Peds = {
         ped.position.x -= (dx / d) * 4.6 * dt;
         ped.position.z -= (dz / d) * 4.6 * dt;
         ped.rotation.y = Math.atan2(dx, dz);
+        Characters.playAnim(ped, "run", 1.35);
       } else {
         // wander along the lane
         const move = p.speed * dt;
@@ -147,6 +123,7 @@ const Peds = {
           if (ped.position.z < -hSpan) { ped.position.z = hSpan; ped.position.x = p.lane; }
         }
         ped.rotation.y = p.axis === 1 ? (p.dir > 0 ? -Math.PI / 2 : Math.PI / 2) : (p.dir > 0 ? 0 : Math.PI);
+        Characters.playAnim(ped, "run", 0.45 + p.speed * 0.2);
 
         // occasionally turn onto another lane
         p.turnTimer -= dt;
