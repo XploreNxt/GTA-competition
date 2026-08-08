@@ -12,6 +12,7 @@ const City = {
   scene: null,
   groundY: 0,
   roadSpan: 0,
+  buildings: [],      // AABBs: {x, z, hw, hd, h} for collision
 
   PASTELS: [
     0xf4a6c8, 0x8fd3f4, 0x9be89e, 0xf9d976, 0xe8a08f,
@@ -145,6 +146,7 @@ const City = {
         b.castShadow = true;
         b.receiveShadow = true;
         this.scene.add(b);
+        this.buildings.push({ x: cx + offX, z: cz + offZ, hw: w / 2, hd: d / 2, h: h });
 
         const roof = new THREE.Mesh(new THREE.BoxGeometry(w * 0.3, 0.4, d * 0.3), roofMat);
         roof.position.set(cx + offX, this.groundY + h + 0.2, cz + offZ);
@@ -203,5 +205,30 @@ const City = {
     const x = horizontal ? t : i * blk;
     const z = horizontal ? i * blk : t;
     return { x, z, horizontal, dir: Math.random() > 0.5 ? 1 : -1 };
+  },
+
+  // Push a point (x,z) out of any building AABB. Returns resolved coords.
+  // "r" is the entity radius to keep out of the box. Max 2 iterations.
+  resolveCollision(x, z, r) {
+    for (let iter = 0; iter < 2; iter++) {
+      let pushed = false;
+      for (const b of this.buildings) {
+        const dx = x - b.x;
+        const dz = z - b.z;
+        const hw = b.hw + r;
+        const hd = b.hd + r;
+        if (Math.abs(dx) < hw && Math.abs(dz) < hd) {
+          // push out along the smallest penetration axis
+          const px = hw - Math.abs(dx);
+          const pz = hd - Math.abs(dz);
+          if (px < pz) x += Math.sign(dx) * px;
+          else z += Math.sign(dz) * pz;
+          pushed = true;
+          break;
+        }
+      }
+      if (!pushed) break;
+    }
+    return { x, z };
   },
 };

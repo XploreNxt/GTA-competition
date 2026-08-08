@@ -98,6 +98,9 @@ const Player = {
       this.person.position.z += nz * this.footSpeed * dt;
       this.person.rotation.y = Math.atan2(nx, nz);
     }
+    const res = City.resolveCollision(this.person.position.x, this.person.position.z, 0.4);
+    this.person.position.x = res.x;
+    this.person.position.z = res.z;
   },
 
   _updateCar(dt) {
@@ -127,6 +130,14 @@ const Player = {
     const move = this.speed * dt;
     this.car.position.x += Math.sin(-this.yaw) * move;
     this.car.position.z += Math.cos(-this.yaw) * move;
+
+    // building collision with a small stick radius; lose speed on impact
+    const res = City.resolveCollision(this.car.position.x, this.car.position.z, 1.0);
+    if (res.x !== this.car.position.x || res.z !== this.car.position.z) {
+      this.speed *= 0.35;
+    }
+    this.car.position.x = res.x;
+    this.car.position.z = res.z;
   },
 
   // Position used by the camera.

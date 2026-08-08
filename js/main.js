@@ -136,11 +136,14 @@ const Game = {
     Vehicle.init(this.scene);
     Vehicle.spawnTraffic(42);
 
+    Peds.init(this.scene);
+    Peds.spawn(40);
+
     Player.spawn(City.BLOCK * 2, 0); // on a road centerline
     this.scene.add(Player.person);
 
     HUD.setMoney(1500);
-    HUD.setMission("Vice City — Phase 1");
+    HUD.setMission("Vice City — Ped test");
   },
 
   _createSky() {
@@ -263,10 +266,11 @@ const Game = {
     this.orbitPitch = Math.max(0.1, Math.min(1.4, this.orbitPitch + dy * 0.005));
   },
 
-  update(dt) {
+update(dt) {
     Player.update(dt);
     Vehicle.updateTraffic(dt);
-    HUD.setMoney(Math.floor(Game.money || 0));
+    Peds.update(dt, Player.pos(), Player.inCar);
+    HUD.setMoney(Game.money);
   },
 
   updateCamera() {
