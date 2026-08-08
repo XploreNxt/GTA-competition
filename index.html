@@ -12,6 +12,126 @@
     <canvas id="hud-canvas"></canvas>
   </div>
 
+  <!-- HUD Overlay -->
+  <div id="hud" class="hidden">
+    <!-- Top Left: Money + Health -->
+    <div class="hud-topleft">
+      <div class="hud-money" id="hud-money">$0</div>
+      <div class="hud-health-wrap">
+        <div class="hud-health-bar"><div class="hud-health-fill" id="hud-health"></div></div>
+        <span class="hud-health-text" id="hud-health-text">100</span>
+      </div>
+    </div>
+
+    <!-- Top Center: Objective -->
+    <div class="hud-topcenter">
+      <div class="hud-objective" id="hud-objective"></div>
+      <div class="hud-wanted" id="hud-wanted"></div>
+    </div>
+
+    <!-- Bottom Center: Mission + Tooltip + GPS -->
+    <div class="hud-bottomcenter">
+      <div class="hud-tooltip" id="hud-tooltip"></div>
+      <div class="hud-mission" id="hud-mission"></div>
+      <div class="hud-gps" id="hud-gps">
+        <div class="hud-gps-ring">
+          <div class="hud-gps-arrow" id="hud-gps-arrow"></div>
+        </div>
+        <div class="hud-gps-dist" id="hud-gps-dist"></div>
+      </div>
+      <div class="hud-speedo" id="hud-speedo">
+        <span class="speedo-val" id="speedo-val">0</span>
+        <span class="speedo-unit">MPH</span>
+      </div>
+    </div>
+
+    <!-- Bottom Right: Minimap canvas (clipped round) -->
+    <div class="hud-minimap-wrap">
+      <canvas id="minimap-canvas"></canvas>
+    </div>
+  </div>
+
+  <!-- Damage vignette flash -->
+  <div id="damage-flash" class="damage-flash"></div>
+
+  <!-- Speed lines -->
+  <div id="speed-lines" class="speed-lines"></div>
+
+  <!-- Mission Complete popup -->
+  <div id="mission-complete" class="mission-complete hidden">
+    <div class="mc-banner">MISSION COMPLETE</div>
+    <div class="mc-title" id="mc-title"></div>
+    <div class="mc-reward">$<span id="mc-reward">0</span></div>
+    <div class="mc-bar"></div>
+  </div>
+
+  <!-- WASTED overlay -->
+  <div id="overlay-wasted" class="game-overlay hidden">
+    <div class="overlay-text wasted-text">WASTED</div>
+    <div class="overlay-sub">Hospital fee: $<span id="wasted-fine">0</span></div>
+    <div class="overlay-hint">Respawning...</div>
+  </div>
+
+  <!-- BUSTED overlay -->
+  <div id="overlay-busted" class="game-overlay hidden">
+    <div class="overlay-text busted-text">BUSTED</div>
+    <div class="overlay-sub">Bail: $<span id="busted-fine">0</span></div>
+    <div class="overlay-hint">Respawning...</div>
+  </div>
+
+  <!-- Loading Screen -->
+  <div id="loading-screen">
+    <div class="loading-content">
+      <div class="loading-title">VICE CITY</div>
+      <div class="loading-sub">LOADING...</div>
+      <div class="loading-bar-wrap">
+        <div class="loading-bar" id="loading-bar"></div>
+      </div>
+      <div class="loading-tip" id="loading-tip">Generating city grid...</div>
+    </div>
+  </div>
+
+  <!-- Start Screen -->
+  <div id="start-screen">
+    <div class="start-content">
+      <div class="title-glow">VICE CITY</div>
+      <div class="title-sub">MINI GTA</div>
+      <div class="start-prompt">PRESS ENTER TO PLAY</div>
+      <div class="controls-grid">
+        <div class="control-item"><span class="key">W A S D</span><span class="action">Move</span></div>
+        <div class="control-item"><span class="key">E</span><span class="action">Enter / Exit Car</span></div>
+        <div class="control-item"><span class="key">SPACE</span><span class="action">Handbrake</span></div>
+        <div class="control-item"><span class="key">MOUSE</span><span class="action">Orbit Camera</span></div>
+        <div class="control-item"><span class="key">ESC</span><span class="action">Pause</span></div>
+      </div>
+    </div>
+    <div class="start-scanlines"></div>
+  </div>
+
+  <!-- Pause Menu -->
+  <div id="pause-menu" class="hidden">
+    <div class="pause-content">
+      <div class="pause-title">PAUSED</div>
+      <button class="pause-btn" id="btn-resume">RESUME</button>
+      <button class="pause-btn" id="btn-controls">CONTROLS</button>
+    </div>
+  </div>
+
+  <!-- Controls Overlay (toggled from pause) -->
+  <div id="controls-overlay" class="hidden">
+    <div class="controls-panel">
+      <div class="controls-title">CONTROLS</div>
+      <div class="controls-list">
+        <div class="control-row"><span class="key-lg">W A S D</span><span>Drive / Walk</span></div>
+        <div class="control-row"><span class="key-lg">E</span><span>Enter / Exit Vehicle</span></div>
+        <div class="control-row"><span class="key-lg">SPACE</span><span>Handbrake</span></div>
+        <div class="control-row"><span class="key-lg">MOUSE DRAG</span><span>Orbit Camera</span></div>
+        <div class="control-row"><span class="key-lg">ESC</span><span>Pause / Resume</span></div>
+      </div>
+      <button class="pause-btn" id="btn-back">BACK</button>
+    </div>
+  </div>
+
   <!-- Local Three.js + addons (offline-safe) -->
   <script src="js/vendor/three.min.js"></script>
   <script src="js/vendor/CopyShader.js"></script>
@@ -34,6 +154,8 @@
   <script src="js/Police.js"></script>
   <script src="js/Mission.js"></script>
   <script src="js/Player.js"></script>
+  <script src="js/Particles.js"></script>
+  <script src="js/Weather.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

@@ -192,7 +192,7 @@ const Mission = {
 
       if (d < 5) {
         if (this.phase === "goto") {
-          HUD.tooltip = this.m.type === "carry" ? "[E] GRAB THE PACKAGE" : "SMASH 6 TRAFFIC CARS";
+          HUD.setTooltip(this.m.type === "carry" ? "[E] GRAB THE PACKAGE" : "SMASH 6 TRAFFIC CARS");
           if (pressed && this.m.type === "carry") {
             this.usedE = true;
             this.phase = "deliver";
@@ -203,7 +203,7 @@ const Mission = {
             HUD.setMission(this.m.title + " — deliver it!" + (this.m.heat > 0 ? "  COPS ARE AFTER YOU" : ""));
           }
         } else if (this.phase === "deliver") {
-          HUD.tooltip = "[E] DELIVER THE PACKAGE";
+          HUD.setTooltip("[E] DELIVER THE PACKAGE");
           if (pressed) {
             this.usedE = true;
             this._complete();
@@ -211,7 +211,7 @@ const Mission = {
           }
         }
       } else {
-        HUD.tooltip = "";
+        HUD.setTooltip("");
       }
       this._phaseText();
     }
@@ -229,11 +229,58 @@ const Mission = {
     Game.money += this.m.reward;
     AudioFX.payoff();
     HUD.setMoney(Game.money);
-    HUD.setObjective("OBJECTIVE CLEAR — +$" + this.m.reward.toLocaleString());
+    HUD.setObjective("MISSION CLEAR");
     HUD.setWaypoint(null);
-    HUD.tooltip = "";
+    HUD.setTooltip("");
     this._clearBeacons();
     this.target = null;
     this.completeTimer = 2.6;
+
+    // Show mission complete popup
+    this._showCompletePopup(this.m.title, this.m.reward);
+  },
+
+  _showCompletePopup(title, reward) {
+    const el = document.getElementById("mission-complete");
+    const titleEl = document.getElementById("mc-title");
+    const rewardEl = document.getElementById("mc-reward");
+
+    titleEl.textContent = title;
+    el.classList.remove("hidden", "mc-exit");
+
+    // Animated cash counter
+    let current = 0;
+    const duration = 1200;
+    const start = performance.now();
+
+    const animate = (now) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      current = Math.floor(eased * reward);
+      rewardEl.textContent = current.toLocaleString();
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        rewardEl.textContent = reward.toLocaleString();
+        // Add extra chime for each $100
+        const chimes = Math.floor(reward / 100);
+        for (let i = 0; i < Math.min(chimes, 5); i++) {
+          setTimeout(() => AudioFX.beep(880 + i * 110, 0.08, 0.15), i * 80);
+        }
+      }
+    };
+    requestAnimationFrame(animate);
+
+    // Hide after delay
+    setTimeout(() => {
+      el.classList.add("mc-exit");
+      setTimeout(() => {
+        el.classList.add("hidden");
+        el.classList.remove("mc-exit");
+      }, 600);
+    }, 3000);
   },
 };

@@ -63,6 +63,20 @@ const AudioFX = {
       this.sirenOsc1.start();
       this.sirenOsc2.start();
 
+      // rain: filtered noise
+      this.rainGain = ctx.createGain();
+      this.rainGain.gain.value = 0.0;
+      const rainFilter = ctx.createBiquadFilter();
+      rainFilter.type = "bandpass";
+      rainFilter.frequency.value = 3000;
+      rainFilter.Q.value = 0.5;
+      this.rainNoise = this._noise(4);
+      this.rainNoise.loop = true;
+      this.rainNoise.connect(rainFilter);
+      rainFilter.connect(this.rainGain);
+      this.rainGain.connect(this.master);
+      this.rainNoise.start();
+
       // resume on first interaction (browsers block autoplay)
       const resume = () => {
         if (this.ctx.state === "suspended") this.ctx.resume();
@@ -98,6 +112,10 @@ const AudioFX = {
       this.sirenOsc1.frequency.setTargetAtTime(640 + wail * 320, t, 0.05);
       this.sirenOsc2.frequency.setTargetAtTime(470 + wail * 340, t, 0.05);
     }
+
+    // rain volume
+    const rainTarget = (typeof Weather !== "undefined" && Weather.isRaining) ? 0.06 : 0;
+    this.rainGain.gain.setTargetAtTime(rainTarget, t, 0.5);
   },
 
   // ---- one-shot effects ----

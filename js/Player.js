@@ -72,7 +72,31 @@ const Player = {
     const safe = City.resolveCollision(hx, hz, 1);
     this.person.position.set(safe.x, 0, safe.z);
     Police.resetWanted();
-    HUD.setObjective("Respawning…");
+    HUD.setObjective("Respawning...");
+  },
+
+  // Show WASTED overlay, then respawn after delay.
+  showWasted(fine) {
+    const el = document.getElementById("overlay-wasted");
+    const fineEl = document.getElementById("wasted-fine");
+    fineEl.textContent = fine.toLocaleString();
+    el.classList.remove("hidden");
+    setTimeout(() => {
+      el.classList.add("hidden");
+      this.respawn();
+    }, 2200);
+  },
+
+  // Show BUSTED overlay, then respawn after delay.
+  showBusted(fine) {
+    const el = document.getElementById("overlay-busted");
+    const fineEl = document.getElementById("busted-fine");
+    fineEl.textContent = fine.toLocaleString();
+    el.classList.remove("hidden");
+    setTimeout(() => {
+      el.classList.add("hidden");
+      this.respawn();
+    }, 2200);
   },
 
   // Find a driveable car within reach while on foot.
@@ -173,6 +197,16 @@ const Player = {
     this.car.position.x += Math.sin(-this.yaw) * move;
     this.car.position.z += Math.cos(-this.yaw) * move;
 
+    // Particles: tire smoke on handbrake/braking
+    if (handbrake && Math.abs(this.speed) > 3) {
+      Particles.emitTireSmoke(this.car.position, this.yaw, this.speed);
+    }
+
+    // Particles: dust trail at high speed
+    if (Math.abs(this.speed) > 10) {
+      Particles.emitDust(this.car.position, this.yaw, this.speed);
+    }
+
     // building collision with a small stick radius; lose speed on impact
     const before = this.speed;
     const res = City.resolveCollision(this.car.position.x, this.car.position.z, 1.0);
@@ -183,6 +217,12 @@ const Player = {
         AudioFX.crash(Math.min(1, hit / 18));
         Game.shake = Math.max(Game.shake, Math.min(0.6, hit / 24));
         this.damage(hit * 0.6);
+
+        // Particles: collision sparks
+        const dx = this.car.position.x - res.x;
+        const dz = this.car.position.z - res.z;
+        const len = Math.sqrt(dx * dx + dz * dz) || 1;
+        Particles.emitSparks(this.car.position, { x: dx / len, z: dz / len });
       }
     }
     this.car.position.x = res.x;

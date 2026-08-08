@@ -88,6 +88,28 @@ const Vehicle = {
     g.add(body, hood, trunk, cabin, windshield, hlL, hlR, tlL, tlR,
       mkWheel(-0.85, 1.1), mkWheel(0.85, 1.1), mkWheel(-0.85, -1.1), mkWheel(0.85, -1.1));
 
+    // Headlights (spotlights)
+    const headL = new THREE.SpotLight(0xfff0cc, 0, 22, 0.5, 0.6, 1.5);
+    headL.position.set(-0.45, 0.7, 1.9);
+    headL.target.position.set(-0.45, 0, 12);
+    g.add(headL, headL.target);
+
+    const headR = new THREE.SpotLight(0xfff0cc, 0, 22, 0.5, 0.6, 1.5);
+    headR.position.set(0.45, 0.7, 1.9);
+    headR.target.position.set(0.45, 0, 12);
+    g.add(headR, headR.target);
+
+    // Taillights (dim red glow)
+    const tailL = new THREE.PointLight(0xff2222, 0, 6, 2);
+    tailL.position.set(-0.52, 0.66, -1.9);
+    g.add(tailL);
+    const tailR = new THREE.PointLight(0xff2222, 0, 6, 2);
+    tailR.position.set(0.52, 0.66, -1.9);
+    g.add(tailR);
+
+    g.userData.headlights = [headL, headR];
+    g.userData.taillights = [tailL, tailR];
+
     this.scene.add(g);
     return g;
   },
@@ -120,7 +142,7 @@ const Vehicle = {
     const span = City.roadSpan;
     const half = span / 2;
     for (const car of this.cars) {
-      if (car.userData.active === false) continue; // player took control
+      if (car.userData.active === false) continue;
       const d = car.userData;
       const move = d.speed * dt;
       if (d.horizontal) {
@@ -134,7 +156,15 @@ const Vehicle = {
       }
     }
 
-    // crime detection: did the player's car shove a traffic car this frame?
+    // Headlights/taillights intensity from night amount
+    for (const car of this.cars) {
+      if (car.userData.headlights) {
+        for (const hl of car.userData.headlights) hl.intensity = this._headlightI;
+        for (const tl of car.userData.taillights) tl.intensity = this._headlightI * 0.5;
+      }
+    }
+
+    // Crime detection: did the player's car shove a traffic car this frame?
     if (Player.inCar && Player.car) {
       const pc = Player.car.position;
       for (const car of this.cars) {
@@ -145,12 +175,21 @@ const Vehicle = {
         const r = 2.3;
         if (Player.speed > 4 && dx * dx + dz * dz < r * r) {
           this._playerBumped++;
-          // push the traffic car out of the way
           const dlen = Math.sqrt(dx * dx + dz * dz) || 1;
           car.position.x += (dx / dlen) * 0.5;
           car.position.z += (dz / dlen) * 0.5;
         }
       }
+    }
+  },
+
+  _headlightI: 0,
+
+  setHeadlights(nightAmount) {
+    this._headlightI = Math.max(0, (nightAmount - 0.3) / 0.4);
+    if (Player.car && Player.car.userData.headlights) {
+      for (const hl of Player.car.userData.headlights) hl.intensity = this._headlightI;
+      for (const tl of Player.car.userData.taillights) tl.intensity = this._headlightI * 0.5;
     }
   },
 };

@@ -32,4 +32,771 @@ html, body {
 #hud-canvas {
   pointer-events: none;
   z-index: 10;
+  display: none;
+}
+
+/* ========================================
+   START SCREEN
+   ======================================== */
+
+#start-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0a0015 0%, #1a0030 30%, #2d0050 60%, #0a0015 100%);
+  overflow: hidden;
+}
+
+#start-screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 120% 60% at 50% 110%, rgba(255, 0, 128, 0.15), transparent),
+    radial-gradient(ellipse 80% 50% at 20% 80%, rgba(0, 200, 255, 0.08), transparent),
+    radial-gradient(ellipse 80% 50% at 80% 80%, rgba(255, 200, 0, 0.08), transparent);
+}
+
+.start-scanlines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.15) 2px,
+    rgba(0, 0, 0, 0.15) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+.start-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+}
+
+.title-glow {
+  font-size: clamp(48px, 10vw, 120px);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #fff;
+  text-shadow:
+    0 0 20px rgba(255, 0, 128, 0.8),
+    0 0 60px rgba(255, 0, 128, 0.4),
+    0 0 120px rgba(255, 0, 128, 0.2),
+    0 2px 0 #cc0066;
+  animation: titlePulse 3s ease-in-out infinite;
+}
+
+.title-sub {
+  font-size: clamp(14px, 3vw, 28px);
+  font-weight: 300;
+  letter-spacing: 0.6em;
+  color: rgba(0, 220, 255, 0.8);
+  margin-top: 4px;
+  text-shadow: 0 0 20px rgba(0, 220, 255, 0.5);
+}
+
+.start-prompt {
+  margin-top: 52px;
+  font-size: clamp(14px, 2.2vw, 22px);
+  font-weight: 600;
+  letter-spacing: 0.25em;
+  color: #ffd93d;
+  text-shadow: 0 0 16px rgba(255, 217, 61, 0.6);
+  animation: blink 1.6s ease-in-out infinite;
+}
+
+.controls-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px 28px;
+  margin-top: 44px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.control-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-item .key {
+  display: inline-block;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+.control-item .action {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+}
+
+@keyframes titlePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.88; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+/* ========================================
+   PAUSE MENU
+   ======================================== */
+
+#pause-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+}
+
+.pause-content {
+  text-align: center;
+}
+
+.pause-title {
+  font-size: 56px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  color: #fff;
+  text-shadow: 0 0 30px rgba(255, 0, 128, 0.5);
+  margin-bottom: 40px;
+}
+
+.pause-btn {
+  display: block;
+  width: 240px;
+  margin: 12px auto;
+  padding: 14px 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pause-btn:hover {
+  background: rgba(255, 0, 128, 0.25);
+  border-color: rgba(255, 0, 128, 0.6);
+  text-shadow: 0 0 12px rgba(255, 0, 128, 0.6);
+}
+
+/* ========================================
+   CONTROLS OVERLAY
+   ======================================== */
+
+#controls-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 950;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+}
+
+.controls-panel {
+  text-align: center;
+  min-width: 360px;
+}
+
+.controls-title {
+  font-size: 36px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  color: #fff;
+  text-shadow: 0 0 20px rgba(0, 220, 255, 0.5);
+  margin-bottom: 32px;
+}
+
+.controls-list {
+  margin-bottom: 32px;
+}
+
+.control-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  letter-spacing: 0.05em;
+}
+
+.control-row .key-lg {
+  font-weight: 700;
+  color: #ffd93d;
+  letter-spacing: 0.12em;
+  text-shadow: 0 0 8px rgba(255, 217, 61, 0.3);
+}
+
+/* ========================================
+   UTILITY
+   ======================================== */
+
+.hidden {
+  display: none !important;
+}
+
+/* ========================================
+   HUD OVERLAY
+   ======================================== */
+
+#hud {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+/* --- Top Left: Money + Health --- */
+
+.hud-topleft {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+}
+
+.hud-money {
+  font-size: 28px;
+  font-weight: 900;
+  color: #5fea5f;
+  text-shadow: 0 0 12px rgba(95, 234, 95, 0.4), 0 1px 2px rgba(0,0,0,0.6);
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.hud-health-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.hud-health-bar {
+  width: 120px;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hud-health-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #ff4444, #5fea5f);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.hud-health-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  min-width: 22px;
+}
+
+/* --- Top Center: Objective --- */
+
+.hud-topcenter {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.hud-objective {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffd93d;
+  text-shadow: 0 0 12px rgba(255, 217, 61, 0.5), 0 1px 3px rgba(0,0,0,0.7);
+  letter-spacing: 0.08em;
+  padding: 8px 24px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.2) 100%);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 217, 61, 0.15);
+  white-space: nowrap;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.hud-objective.visible {
+  opacity: 1;
+}
+
+.hud-wanted {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 6px;
+  min-height: 20px;
+}
+
+.hud-wanted .star {
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+  position: relative;
+}
+
+.hud-wanted .star svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 4px rgba(255, 45, 45, 0.6));
+  animation: starPulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes starPulse {
+  0% { filter: drop-shadow(0 0 4px rgba(255, 45, 45, 0.6)); }
+  100% { filter: drop-shadow(0 0 10px rgba(255, 45, 45, 0.9)); }
+}
+
+/* --- Bottom Center: Mission + Tooltip + GPS --- */
+
+.hud-bottomcenter {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.hud-tooltip {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffd93d;
+  text-shadow: 0 0 10px rgba(255, 217, 61, 0.5), 0 1px 2px rgba(0,0,0,0.7);
+  letter-spacing: 0.1em;
+  padding: 6px 20px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 217, 61, 0.2);
+  border-radius: 20px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.hud-tooltip.visible {
+  opacity: 1;
+}
+
+.hud-mission {
+  font-size: 15px;
+  font-weight: 700;
+  color: #7fd6ff;
+  text-shadow: 0 0 12px rgba(127, 214, 255, 0.4), 0 1px 3px rgba(0,0,0,0.7);
+  letter-spacing: 0.08em;
+  padding: 8px 28px;
+  background: linear-gradient(0deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 100%);
+  border-radius: 4px;
+  border: 1px solid rgba(127, 214, 255, 0.12);
+  white-space: nowrap;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.hud-mission.visible {
+  opacity: 1;
+}
+
+/* --- GPS Ring --- */
+
+.hud-gps {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.hud-gps.visible {
+  opacity: 1;
+}
+
+.hud-gps-ring {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.6);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
+}
+
+.hud-gps-arrow {
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-bottom: 14px solid #ffd93d;
+  filter: drop-shadow(0 0 4px rgba(255, 217, 61, 0.6));
+  transform-origin: center center;
+}
+
+.hud-gps-dist {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+}
+
+/* --- Speedometer --- */
+
+.hud-speedo {
+  display: none;
+  align-items: baseline;
+  gap: 4px;
+  padding: 4px 14px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.hud-speedo.visible {
+  display: flex;
+}
+
+.speedo-val {
+  font-size: 26px;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+  min-width: 40px;
+  text-align: right;
+}
+
+.speedo-unit {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.1em;
+}
+
+/* --- Minimap (bottom right, round clip) --- */
+
+.hud-minimap-wrap {
+  position: absolute;
+  bottom: 18px;
+  right: 18px;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(0, 0, 0, 0.3);
+  background: rgba(8, 12, 14, 0.8);
+}
+
+#minimap-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* --- Damage Flash --- */
+
+.damage-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(200, 0, 0, 0.55) 100%);
+}
+
+.damage-flash.active {
+  opacity: 1;
+}
+
+/* ========================================
+   GAME OVER OVERLAYS (WASTED / BUSTED)
+   ======================================== */
+
+.game-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: overlayFadeIn 0.4s ease-out;
+}
+
+.game-overlay.hidden {
+  display: none !important;
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.overlay-text {
+  font-size: clamp(60px, 12vw, 140px);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  line-height: 1;
+}
+
+.wasted-text {
+  color: #ff2222;
+  text-shadow:
+    0 0 30px rgba(255, 34, 34, 0.8),
+    0 0 80px rgba(255, 34, 34, 0.4),
+    0 4px 0 #990000;
+}
+
+.busted-text {
+  color: #5aa8ff;
+  text-shadow:
+    0 0 30px rgba(90, 168, 255, 0.8),
+    0 0 80px rgba(90, 168, 255, 0.4),
+    0 4px 0 #1a4a80;
+}
+
+.overlay-sub {
+  font-size: 18px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 12px;
+  letter-spacing: 0.08em;
+}
+
+.overlay-hint {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 20px;
+  letter-spacing: 0.1em;
+  animation: blink 1.2s ease-in-out infinite;
+}
+
+#overlay-wasted {
+  background: radial-gradient(ellipse at center, rgba(80, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.85) 100%);
+}
+
+#overlay-busted {
+  background: radial-gradient(ellipse at center, rgba(0, 30, 80, 0.6) 0%, rgba(0, 0, 0, 0.85) 100%);
+}
+
+/* ========================================
+   SPEED LINES
+   ======================================== */
+
+.speed-lines {
+  position: fixed;
+  inset: 0;
+  z-index: 44;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  background:
+    repeating-conic-gradient(
+      from 0deg at 50% 50%,
+      transparent 0deg,
+      transparent 3deg,
+      rgba(255, 255, 255, 0.06) 3deg,
+      rgba(255, 255, 255, 0.06) 4deg
+    );
+  mask-image: radial-gradient(circle at center, transparent 15%, black 40%, black 70%, transparent 100%);
+  -webkit-mask-image: radial-gradient(circle at center, transparent 15%, black 40%, black 70%, transparent 100%);
+  animation: speedSpin 0.8s linear infinite;
+  mix-blend-mode: screen;
+}
+
+.speed-lines.active {
+  opacity: 1;
+}
+
+@keyframes speedSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ========================================
+   LOADING SCREEN
+   ======================================== */
+
+#loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #0a0015 0%, #1a0030 50%, #0a0015 100%);
+}
+
+#loading-screen.hidden {
+  display: none !important;
+}
+
+.loading-content {
+  text-align: center;
+}
+
+.loading-title {
+  font-size: 48px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  color: #fff;
+  text-shadow: 0 0 30px rgba(255, 0, 128, 0.6);
+}
+
+.loading-sub {
+  font-size: 14px;
+  font-weight: 300;
+  letter-spacing: 0.5em;
+  color: rgba(0, 220, 255, 0.6);
+  margin-top: 8px;
+}
+
+.loading-bar-wrap {
+  width: 300px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  margin: 32px auto 0;
+  overflow: hidden;
+}
+
+.loading-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #ff0066, #00ccff);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 12px rgba(255, 0, 128, 0.5);
+}
+
+.loading-tip {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 16px;
+  letter-spacing: 0.08em;
+}
+
+/* ========================================
+   MISSION COMPLETE POPUP
+   ======================================== */
+
+.mission-complete {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  z-index: 150;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  animation: mcSlideIn 0.5s ease-out forwards;
+}
+
+.mission-complete.hidden {
+  display: none !important;
+}
+
+.mission-complete.mc-exit {
+  animation: mcSlideOut 0.6s ease-in forwards;
+}
+
+@keyframes mcSlideIn {
+  0% { opacity: 0; transform: translateX(-50%) translateY(-30px) scale(0.9); }
+  100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+@keyframes mcSlideOut {
+  0% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-20px) scale(0.95); }
+}
+
+.mc-banner {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  color: #5fea5f;
+  text-shadow: 0 0 16px rgba(95, 234, 95, 0.5);
+  padding: 6px 28px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(95, 234, 95, 0.25);
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.mc-title {
+  font-size: 22px;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  letter-spacing: 0.1em;
+  margin-bottom: 10px;
+}
+
+.mc-reward {
+  font-size: 42px;
+  font-weight: 900;
+  color: #5fea5f;
+  text-shadow: 0 0 24px rgba(95, 234, 95, 0.6), 0 2px 4px rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.mc-bar {
+  width: 200px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #5fea5f, transparent);
+  margin: 14px auto 0;
+  border-radius: 2px;
+  animation: mcPulse 1s ease-in-out infinite;
+}
+
+@keyframes mcPulse {
+  0%, 100% { opacity: 0.4; width: 200px; }
+  50% { opacity: 1; width: 260px; }
 }

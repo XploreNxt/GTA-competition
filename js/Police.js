@@ -41,7 +41,7 @@ const Police = {
     Game.money = Math.max(0, Game.money - fine);
     HUD.setMoney(Game.money);
     this.resetWanted();
-    Player.respawn();
+    Player.showWasted(fine);
   },
 
   // Spawn a police cruiser on a road, well away from the player.
