@@ -31,7 +31,7 @@ const Peds = {
     // Pick a valid sidewalk lane + direction.
     const lane = this._randomLane();
     g.position.set(lane.x, 0, lane.z);
-    g.userData = {
+    Object.assign(g.userData, {
       speed: 1.2 + Math.random() * 1.4,
       axis: lane.axis,       // 'x' or 'z'
       dir: lane.dir,
@@ -40,7 +40,7 @@ const Peds = {
       kb: 0,                 // knock-back impulse magnitude
       kbx: { x: 0, z: 0 },
       panic: 0,              // seconds of fleeing
-    };
+    });
     this.scene.add(g);
     this.list.push(g);
   },

@@ -172,13 +172,11 @@ const Player = {
 
   _updateFoot(dt) {
     // Camera-relative movement: W goes where camera faces
-    // Camera forward (from camera to player) = (sin(hubYaw), -cos(hubYaw))
-    // For foot: hubYaw = orbitYaw + PI, so forward = (-sin(orbitYaw), cos(orbitYaw))
     const camAngle = Game.orbitYaw;
     const fwdX = -Math.sin(camAngle);
     const fwdZ = Math.cos(camAngle);
-    const rightX = Math.cos(camAngle);
-    const rightZ = Math.sin(camAngle);
+    const rightX = -Math.cos(camAngle); // flip for correct left/right
+    const rightZ = -Math.sin(camAngle);
 
     const inputV = Input.axisV(); // W=+1, S=-1
     const inputH = Input.axisH(); // D=+1, A=-1
@@ -241,11 +239,10 @@ const Player = {
 
     // Steering rotates the car (camera follows via orbitYaw)
     const dir = Math.sign(this.speed);
-    this.yaw -= steer * this.turnRate * dt * dir * Math.min(1, Math.abs(this.speed) / 9 + 0.2);
+    this.yaw += steer * this.turnRate * dt * dir * Math.min(1, Math.abs(this.speed) / 9 + 0.2); // flip for correct steering
     this.car.rotation.y = this.yaw;
 
     // Camera-relative movement: car moves in camera's forward direction
-    // hubYaw = yaw + orbitYaw + PI, forward = (sin(hubYaw), -cos(hubYaw))
     const camAngle = this.yaw + Game.orbitYaw;
     const fwdX = -Math.sin(camAngle);
     const fwdZ = Math.cos(camAngle);

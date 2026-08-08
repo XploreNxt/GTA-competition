@@ -497,7 +497,7 @@ const Game = {
     const dx = e.clientX - this._dragLast.x;
     const dy = e.clientY - this._dragLast.y;
     this._dragLast = { x: e.clientX, y: e.clientY };
-    this.orbitYaw -= dx * 0.005;
+    this.orbitYaw += dx * 0.005; // flip: mouse right = camera right
     this.orbitPitch = Math.max(0.1, Math.min(1.4, this.orbitPitch + dy * 0.005));
   },
 

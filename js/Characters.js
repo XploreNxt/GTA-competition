@@ -131,6 +131,7 @@ const Characters = {
   // Play a clip on a character group ("idle" | "run" | "jump"), fading between.
   playAnim(character, name, timeScale) {
     const u = character.userData;
+    if (!u.mixer) return;
     if (u.anim === name) {
       if (u.action) u.action.timeScale = timeScale || 1;
       return;
