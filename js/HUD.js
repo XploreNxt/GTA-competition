@@ -3,8 +3,6 @@
 // HUD — manages all on-screen UI via styled HTML elements.
 // The minimap is the only thing still drawn on a dedicated canvas.
 
-const STAR_SVG = `<svg viewBox="0 0 24 24" fill="#ff2d2d"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>`;
-
 const HUD = {
   money: 0,
   health: 100,
@@ -20,6 +18,10 @@ const HUD = {
   _minimapCanvas: null,
   _minimapCtx: null,
   _v3: null,
+  _starStripUrl: null,
+  _starImg: null,
+  _lastStarCount: -1,
+  _starMode: "gold", // "gold" (transparent, processed) | "css" (filter fallback)
 
   init() {
     this._els = {
@@ -28,7 +30,7 @@ const HUD = {
       healthFill: document.getElementById("hud-health"),
       healthText: document.getElementById("hud-health-text"),
       objective: document.getElementById("hud-objective"),
-      wanted: document.getElementById("hud-wanted"),
+      wanted: document.getElementById("hud-stars"),
       mission: document.getElementById("hud-mission"),
       tooltip: document.getElementById("hud-tooltip"),
       gps: document.getElementById("hud-gps"),
@@ -44,6 +46,83 @@ const HUD = {
     this._minimapCtx = this._minimapCanvas.getContext("2d");
     this._resizeMinimap();
     window.addEventListener("resize", () => this._resizeMinimap());
+
+    this._loadStarStrip();
+  },
+
+  // Load Assets/stars.png (5-star sprite, dark stars on white),
+  // key out the white background and re-tint the stars gold.
+  _loadStarStrip() {
+    const img = new Image();
+    img.src = "Assets/stars.png";
+    img.onload = () => {
+      try {
+        const c = document.createElement("canvas");
+        c.width = img.width; c.height = img.height;
+        const ctx = c.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+        const id = ctx.getImageData(0, 0, c.width, c.height);
+        const d = id.data;
+        for (let i = 0; i < d.length; i += 4) {
+          const r = d[i], g = d[i + 1], b = d[i + 2];
+          const lum = (r + g + b) / 3;
+          if (lum > 180) {
+            d[i + 3] = 0; // key out the (gradient) background, keep dark stars
+            continue;
+          }
+          // star pixel: gold with brightness by darkness (bright core, darker edge)
+          const t = lum / 255;
+          const bright = 0.35 + 0.65 * (1 - t);
+          d[i] = Math.round(255 * bright);
+          d[i + 1] = Math.round(217 * bright);
+          d[i + 2] = Math.round(61 * bright);
+          d[i + 3] = 255;
+        }
+        ctx.putImageData(id, 0, 0);
+        this._starStripUrl = c.toDataURL();
+        this._starMode = "gold";
+        this._renderStars(Math.ceil(this.wanted));
+      } catch (e) {
+        console.warn("Star sprite processing failed, using CSS filter fallback:", e);
+        // file:// pages taint the canvas — tint via CSS instead
+        this._starStripUrl = "Assets/stars.png";
+        this._starMode = "css";
+        this._renderStars(Math.ceil(this.wanted));
+      }
+    };
+    img.onerror = () => {
+      console.warn("Could not load Assets/stars.png");
+    };
+  },
+
+  // Show N stars from the left of the 5-star strip.
+  _renderStars(n) {
+    const el = this._els.wanted;
+    if (!el) return;
+    if (n <= 0 || !this._starStripUrl) {
+      this._lastStarCount = n;
+      el.classList.remove("visible");
+      el.style.width = "0px";
+      el.innerHTML = "";
+      return;
+    }
+    if (n === this._lastStarCount && this._starImg) return;
+    this._lastStarCount = n;
+
+    if (!this._starImg) {
+      this._starImg = document.createElement("img");
+      this._starImg.draggable = false;
+      this._starImg.className = "star-img";
+      el.appendChild(this._starImg);
+    }
+    // star cell = 172px of 860px strip; display height 22px
+    const starW = 22 * (172 / 201);
+    this._starImg.src = this._starStripUrl;
+    this._starImg.style.width = (5 * starW) + "px";
+    this._starImg.style.height = "22px";
+    this._starImg.classList.toggle("css-tint", this._starMode === "css");
+    el.style.width = (n * starW) + "px";
+    el.classList.add("visible");
   },
 
   show() { this._els.hud.classList.remove("hidden"); },
@@ -241,14 +320,7 @@ const HUD = {
 
   setWanted(v) {
     this.wanted = v;
-    const count = Math.ceil(v);
-    if (count === 0) {
-      this._els.wanted.innerHTML = "";
-      return;
-    }
-    let html = "";
-    for (let i = 0; i < count; i++) html += `<span class="star">${STAR_SVG}</span>`;
-    this._els.wanted.innerHTML = html;
+    this._renderStars(Math.ceil(v));
   },
 
   setObjective(t) {
