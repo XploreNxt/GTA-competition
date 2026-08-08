@@ -196,6 +196,8 @@ const Mission = {
           if (pressed && this.m.type === "carry") {
             this.usedE = true;
             this.phase = "deliver";
+            AudioFX.beep(660, 0.1, 0.25);
+            AudioFX.beep(990, 0.12, 0.25);
             this._setTarget(this.m.drop, "DROP OFF");
             if (this.m.heat > 0) Police.reportCrime(this.m.heat);
             HUD.setMission(this.m.title + " — deliver it!" + (this.m.heat > 0 ? "  COPS ARE AFTER YOU" : ""));
@@ -225,6 +227,7 @@ const Mission = {
 
   _complete() {
     Game.money += this.m.reward;
+    AudioFX.payoff();
     HUD.setMoney(Game.money);
     HUD.setObjective("OBJECTIVE CLEAR — +$" + this.m.reward.toLocaleString());
     HUD.setWaypoint(null);

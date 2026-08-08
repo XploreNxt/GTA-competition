@@ -10,6 +10,8 @@ const HUD = {
   objective: "",
   tooltip: "",       // contextual hint, bottom-center
   waypoint: null,    // {x, z} in world space, or null
+  flash: 0,          // red damage vignette 0..1
+  _lastHealth: 100,
 
   _canvas: null,
   _ctx: null,
@@ -165,12 +167,86 @@ const HUD = {
       ctx.fillText(this.tooltip, w / 2, h - 73);
     }
 
+    // --- Damage flash (red vignette edge) ---
+    if (this.flash > 0.01) {
+      this.flash *= 0.92;
+      const grad = ctx.createRadialGradient(w / 2, h / 2, h * 0.28, w / 2, h / 2, h * 0.75);
+      grad.addColorStop(0, "rgba(200,0,0,0)");
+      grad.addColorStop(1, "rgba(200,0,0," + (this.flash * 0.55).toFixed(3) + ")");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    // --- Minimap (bottom-right) ---
+    this._drawMinimap(ctx, w, h);
+
+    ctx.restore();
+  },
+
+  _drawMinimap(ctx, w, h) {
+    if (!City.BLOCK || !Player.person) return;
+    const size = 148, pad = 18;
+    const x = w - size - pad, y = h - size - pad;
+    const half = City.roadSpan / 2;
+    const scale = size / City.roadSpan;
+    const mx = (wx) => x + (wx + half) * scale;
+    const my = (wz) => y + (wz + half) * scale;
+
+    ctx.fillStyle = "rgba(8,12,14,0.72)";
+    ctx.fillRect(x, y, size, size);
+
+    // street grid
+    ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    ctx.lineWidth = 2;
+    for (let i = -City.EXTENT; i <= City.EXTENT; i++) {
+      const kx = mx(i * City.BLOCK), kz = my(i * City.BLOCK);
+      ctx.beginPath(); ctx.moveTo(kx, y); ctx.lineTo(kx, y + size); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, kz); ctx.lineTo(x + size, kz); ctx.stroke();
+    }
+    ctx.strokeStyle = "rgba(255,255,255,0.22)";
+    ctx.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
+
+    // cops
+    if (Police.cops) {
+      ctx.fillStyle = "#5aa8ff";
+      for (const c of Police.cops) {
+        const cx = mx(c.position.x), cy = my(c.position.z);
+        if (cx >= x - 4 && cy >= y - 4 && cx <= x + size + 4 && cy <= y + size + 4) {
+          ctx.beginPath(); ctx.arc(cx, cy, 3, 0, 7); ctx.fill();
+        }
+      }
+    }
+    // waypoint beacon
+    if (this.waypoint) {
+      const bx = mx(this.waypoint.x), by = my(this.waypoint.z);
+      ctx.fillStyle = "#ffd93d";
+      ctx.save();
+      ctx.translate(bx, by);
+      ctx.rotate(Math.PI / 4);
+      ctx.fillRect(-3.5, -3.5, 7, 7);
+      ctx.restore();
+    }
+    // player arrow
+    const pp = Player.pos();
+    const px = mx(pp.x), py = my(pp.z);
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(Player.inCar ? -Player.yaw : -Player.person.rotation.y);
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.moveTo(0, -6); ctx.lineTo(4.2, 5); ctx.lineTo(0, 2.2); ctx.lineTo(-4.2, 5);
+    ctx.closePath();
+    ctx.fill();
     ctx.restore();
   },
 
   // Public setters used by the game.
   setMoney(v) { this.money = v; },
-  setHealth(v) { this.health = v; },
+  setHealth(v) {
+    if (v < this._lastHealth) this.flash = Math.min(1, this.flash + 0.5);
+    this._lastHealth = v;
+    this.health = v;
+  },
   setWanted(v) { this.wanted = v; },
   setMission(t) { this.mission = t; },
   setObjective(t) { this.objective = t; },

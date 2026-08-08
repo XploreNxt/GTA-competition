@@ -93,6 +93,7 @@ const Player = {
     this.yaw = car.rotation.y;
     this.speed = 0;
     this.person.visible = false;
+    AudioFX.whoosh();
   },
 
   exit() {
@@ -106,6 +107,7 @@ const Player = {
     }
     this.speed = 0;
     this.person.visible = true;
+    AudioFX.whoosh();
   },
 
   update(dt) {
@@ -172,9 +174,16 @@ const Player = {
     this.car.position.z += Math.cos(-this.yaw) * move;
 
     // building collision with a small stick radius; lose speed on impact
+    const before = this.speed;
     const res = City.resolveCollision(this.car.position.x, this.car.position.z, 1.0);
     if (res.x !== this.car.position.x || res.z !== this.car.position.z) {
       this.speed *= 0.35;
+      const hit = Math.abs(before);
+      if (hit > 7) {
+        AudioFX.crash(Math.min(1, hit / 18));
+        Game.shake = Math.max(Game.shake, Math.min(0.6, hit / 24));
+        this.damage(hit * 0.6);
+      }
     }
     this.car.position.x = res.x;
     this.car.position.z = res.z;

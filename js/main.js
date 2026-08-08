@@ -95,10 +95,12 @@ const Game = {
 
   clock: new THREE.Clock(),
   time: 0,
+  shake: 0,
 
   init() {
     Input.init();
     HUD.init();
+    AudioFX.init();
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: document.getElementById("game-canvas"),
@@ -292,16 +294,19 @@ update(dt) {
 
     HUD.setMoney(Game.money);
     HUD.setHealth(Player.health);
+    AudioFX.update(dt, Player.speed, Player.maxSpeed, Player.inCar, Police.stars);
   },
 
   updateCamera() {
+    this.shake *= Math.max(0, 1 - 3.5 * (1 / 60));
     const pos = Player.pos();
     const hubYaw = (Player.inCar ? Player.yaw : 0) + this.orbitYaw + Math.PI;
     const cx = pos.x + Math.sin(-hubYaw) * this.orbitDist * Math.cos(this.orbitPitch);
     const cz = pos.z + Math.cos(-hubYaw) * this.orbitDist * Math.cos(this.orbitPitch);
     const cy = pos.y + 2.5 + Math.sin(this.orbitPitch) * this.orbitDist;
-    this.camera.position.lerp(new THREE.Vector3(cx, cy, cz), 0.25);
-    this.camera.lookAt(new THREE.Vector3(pos.x, pos.y + 1.2, pos.z));
+    const s = this.shake;
+    this.camera.position.lerp(new THREE.Vector3(cx + (Math.random() - 0.5) * s, cy + (Math.random() - 0.5) * s, cz + (Math.random() - 0.5) * s), 0.25);
+    this.camera.lookAt(new THREE.Vector3(pos.x + (Math.random() - 0.5) * s * 0.5, pos.y + 1.2, pos.z));
   },
 
   loop() {
