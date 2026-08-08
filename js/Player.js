@@ -27,11 +27,36 @@ const Player = {
   _jumpHeld: false,
 
   spawn(x, z) {
-    const g = Characters.make(0);
-    g.position.set(x, 0, z);
-    Characters.track(g);
-    Characters.playAnim(g, "idle");
-    this.person = g;
+    // Use FBX character if loaded, otherwise fallback to simple mesh
+    if (Characters.ready && Characters.model) {
+      const g = Characters.make(0);
+      g.position.set(x, 0, z);
+      Characters.track(g);
+      Characters.playAnim(g, "idle");
+      this.person = g;
+    } else {
+      // Fallback: simple humanoid character
+      const g = new THREE.Group();
+      const skin = new THREE.MeshLambertMaterial({ color: 0x4a7abb });
+      const pants = new THREE.MeshLambertMaterial({ color: 0x2b2f36 });
+      const shoes = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+
+      const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.34, 0.7, 8), skin);
+      torso.position.y = 1.35;
+      torso.castShadow = true;
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), skin);
+      head.position.y = 1.9;
+      head.castShadow = true;
+      const legs = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.7, 6), pants);
+      legs.position.y = 0.7;
+      legs.castShadow = true;
+      const arms = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.6, 6), skin);
+      arms.position.y = 1.35;
+      arms.castShadow = true;
+      g.add(torso, head, legs, arms);
+      g.position.set(x, 0, z);
+      this.person = g;
+    }
     this.yaw = 0;
     this.health = this.maxHealth;
     this.alive = true;
