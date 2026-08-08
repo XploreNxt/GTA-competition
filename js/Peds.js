@@ -7,6 +7,7 @@ const Peds = {
   list: [],
   scene: null,
   count: 34,
+  _hits: 0, // peds struck by the player this frame (read by Game for crimes)
 
   // Reusable visuals
   _parts: null,
@@ -156,6 +157,7 @@ const Peds = {
         p.kb = 1;
         p.kbx.x = dx / d;
         p.kbx.z = dz / d;
+        this._hits++;
       }
     }
   },

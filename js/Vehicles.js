@@ -4,6 +4,7 @@
 
 const Vehicle = {
   scene: null,
+  _playerBumped: 0, // bumped traffic flags (read by Game for crimes)
 
   // Shared geometries so many cars stay cheap.
   _geo: null,
@@ -130,6 +131,25 @@ const Vehicle = {
         car.position.z += d.dir * move;
         if (car.position.z > half + 20) car.position.z = -half;
         if (car.position.z < -half - 20) car.position.z = half;
+      }
+    }
+
+    // crime detection: did the player's car shove a traffic car this frame?
+    if (Player.inCar && Player.car) {
+      const pc = Player.car.position;
+      for (const car of this.cars) {
+        const d = car.userData;
+        if (d.active === false) continue;
+        const dx = car.position.x - pc.x;
+        const dz = car.position.z - pc.z;
+        const r = 2.3;
+        if (Player.speed > 4 && dx * dx + dz * dz < r * r) {
+          this._playerBumped++;
+          // push the traffic car out of the way
+          const dlen = Math.sqrt(dx * dx + dz * dz) || 1;
+          car.position.x += (dx / dlen) * 0.5;
+          car.position.z += (dz / dlen) * 0.5;
+        }
       }
     }
   },

@@ -18,6 +18,10 @@ const Player = {
   turnRate: 2.2,
   footSpeed: 4.2,
 
+  health: 100,
+  maxHealth: 100,
+  alive: true,
+
   _eLast: false,
 
   spawn(x, z) {
@@ -38,6 +42,37 @@ const Player = {
     g.position.set(x, 0, z);
     this.person = g;
     this.yaw = 0;
+    this.health = this.maxHealth;
+    this.alive = true;
+  },
+
+  damage(v) {
+    if (!this.alive) return;
+    this.health = Math.max(0, this.health - v);
+    HUD.setHealth(this.health);
+    if (this.health <= 0) {
+      this.alive = false;
+      Police.onKilled();
+    }
+  },
+
+  // Respawn at the hospital after death / arrest. Clears wanted level.
+  respawn() {
+    this.alive = true;
+    this.health = this.maxHealth;
+    HUD.setHealth(this.health);
+    if (this.inCar && this.car) {
+      this.car.visible = false;
+      this.car = null;
+    }
+    this.inCar = false;
+    this.speed = 0;
+    this.person.visible = true;
+    const hx = -City.BLOCK * 8, hz = -City.BLOCK * 8;
+    const safe = City.resolveCollision(hx, hz, 1);
+    this.person.position.set(safe.x, 0, safe.z);
+    Police.resetWanted();
+    HUD.setObjective("Respawning…");
   },
 
   // Find a driveable car within reach while on foot.

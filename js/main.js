@@ -94,6 +94,7 @@ const Game = {
   _dragLast: null,
 
   clock: new THREE.Clock(),
+  time: 0,
 
   init() {
     Input.init();
@@ -129,7 +130,7 @@ const Game = {
     HUD.setObjective("WASD move — E enter car — drag orbit");
   },
 
-  // Phase 1 world: city, traffic, player.
+// Phase 1 world: city, traffic, player.
   _createWorld() {
     City.init(this.scene);
 
@@ -139,11 +140,13 @@ const Game = {
     Peds.init(this.scene);
     Peds.spawn(40);
 
+    Police.init(this.scene);
+
     Player.spawn(City.BLOCK * 2, 0); // on a road centerline
     this.scene.add(Player.person);
 
     HUD.setMoney(1500);
-    HUD.setMission("Vice City — Ped test");
+    HUD.setMission("Vice City");
   },
 
   _createSky() {
@@ -267,10 +270,26 @@ const Game = {
   },
 
 update(dt) {
+    this.time += dt;
     Player.update(dt);
     Vehicle.updateTraffic(dt);
     Peds.update(dt, Player.pos(), Player.inCar);
+    Police.update(dt, Player.pos().x, Player.pos().z);
+
+    // Crime reporting: hitting peds / crashing into cars raises wanted.
+    const pedHits = Peds._hits;
+    if (pedHits > 0) {
+      Police.reportCrime(pedHits * 0.55 * (Player.inCar ? 1.5 : 0.6));
+      Peds._hits = 0;
+    }
+    const carHit = Vehicle._playerBumped;
+    if (carHit) {
+      Police.reportCrime(0.45);
+      Vehicle._playerBumped = 0;
+    }
+
     HUD.setMoney(Game.money);
+    HUD.setHealth(Player.health);
   },
 
   updateCamera() {
