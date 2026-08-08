@@ -15,9 +15,21 @@ const Vehicle = {
 
   _loadModel() {
     return new Promise((resolve) => {
+      let resolved = false;
+      const done = () => { if (!resolved) { resolved = true; resolve(); } };
+
+      // Timeout: if FBX doesn't load in 8 seconds, use fallback
+      const timer = setTimeout(() => {
+        if (!this._ready) {
+          console.warn("Car model load timed out, using fallback cars");
+          done();
+        }
+      }, 8000);
+
       const loader = new THREE.FBXLoader();
       loader.load("Assets/car/Models/Audi R8.fbx",
         (obj) => {
+          clearTimeout(timer);
           try {
             const box = new THREE.Box3().setFromObject(obj);
             const size = box.getSize(new THREE.Vector3());
@@ -47,13 +59,14 @@ const Vehicle = {
             console.error("Car model prepare failed:", e);
             this._ready = false;
           }
-          resolve();
+          done();
         },
         undefined,
         (err) => {
-          console.error("Car FBX load error:", err);
+          clearTimeout(timer);
+          console.warn("Car FBX load error, using fallback:", err);
           this._ready = false;
-          resolve();
+          done();
         }
       );
     });
@@ -84,22 +97,57 @@ const Vehicle = {
   _buildFallback(color) {
     const g = new THREE.Group();
     const paintMat = new THREE.MeshLambertMaterial({ color });
+    const darkMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(color).multiplyScalar(0.5) });
     const glassMat = new THREE.MeshLambertMaterial({ color: 0x111122, transparent: true, opacity: 0.7 });
     const tireMat = new THREE.MeshLambertMaterial({ color: 0x161616 });
+    const chromeMat = new THREE.MeshLambertMaterial({ color: 0xcccccc });
+    const lightWMat = new THREE.MeshStandardMaterial({ color: 0xfff6e0, emissive: 0xfff0c8, emissiveIntensity: 2.4 });
+    const lightRMat = new THREE.MeshStandardMaterial({ color: 0xff2222, emissive: 0xff2020, emissiveIntensity: 1.4 });
 
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 4.2), paintMat);
-    body.position.y = 0.5;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.5, 4.2), paintMat);
+    body.position.y = 0.55;
     body.castShadow = true;
-    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.5, 2.0), glassMat);
-    cabin.position.set(0, 1.05, -0.2);
-    const wheelGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.2, 12);
+    g.add(body);
+
+    const hood = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.15, 1.0), darkMat);
+    hood.position.set(0, 0.85, 1.4);
+    g.add(hood);
+
+    const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.15, 1.0), darkMat);
+    trunk.position.set(0, 0.85, -1.3);
+    g.add(trunk);
+
+    const cabin = new THREE.Mesh(new THREE.SphereGeometry(0.9, 10, 8), glassMat);
+    cabin.position.set(0, 1.0, -0.1);
+    cabin.scale.set(0.8, 0.45, 1.1);
+    g.add(cabin);
+
+    const windshield = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.08, 1.3), glassMat);
+    windshield.position.set(0, 1.12, -0.05);
+    windshield.rotation.x = -0.25;
+    g.add(windshield);
+
+    const hlL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.05), lightWMat);
+    hlL.position.set(-0.55, 0.58, 2.12);
+    g.add(hlL);
+    const hlR = hlL.clone(); hlR.position.x = 0.55; g.add(hlR);
+    const tlL = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.1, 0.05), lightRMat);
+    tlL.position.set(-0.55, 0.58, -2.12);
+    g.add(tlL);
+    const tlR = tlL.clone(); tlR.position.x = 0.55; g.add(tlR);
+
+    const wheelGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.2, 12);
+    const rimGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.22, 8);
     const mkW = (x, z) => {
-      const w = new THREE.Mesh(wheelGeo, tireMat);
-      w.rotation.x = Math.PI / 2;
-      w.position.set(x, 0.32, z);
+      const w = new THREE.Group();
+      const t = new THREE.Mesh(wheelGeo, tireMat); t.rotation.x = Math.PI / 2;
+      const r = new THREE.Mesh(rimGeo, chromeMat); r.rotation.x = Math.PI / 2;
+      w.add(t, r);
+      w.position.set(x, 0.3, z);
       return w;
     };
-    g.add(body, cabin, mkW(-0.85, 1.2), mkW(0.85, 1.2), mkW(-0.85, -1.2), mkW(0.85, -1.2));
+    g.add(mkW(-0.85, 1.25), mkW(0.85, 1.25), mkW(-0.85, -1.25), mkW(0.85, -1.25));
+
     return g;
   },
 
