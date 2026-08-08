@@ -25,10 +25,23 @@ const Characters = {
   load(onProgress) {
     const step = (pct, label) => onProgress && onProgress(pct, label);
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
+      let resolved = false;
+      const done = () => { if (!resolved) { resolved = true; resolve(); } };
+
+      // Timeout: if character doesn't load in 8 seconds, use fallback
+      const timer = setTimeout(() => {
+        if (!this.ready) {
+          console.warn("Character model load timed out, using fallback");
+          this.ready = false;
+          done();
+        }
+      }, 8000);
+
       const loader = new THREE.FBXLoader();
       loader.load(this._url("Model", "characterMedium", "fbx"),
         (obj) => {
+          clearTimeout(timer);
           try {
             console.log("FBX model loaded:", obj);
             this._prepare(obj);
@@ -39,23 +52,26 @@ const Characters = {
             ]).then(() => {
               this.ready = true;
               console.log("Character ready, skins:", this.skins.length);
-              resolve();
+              done();
             }, (e) => {
               console.warn("Skins/anims failed:", e);
-              this.ready = true; // still ready even without skins
-              resolve();
+              this.ready = true;
+              done();
             });
           } catch (e) {
             console.error("Character prepare failed:", e);
-            reject(e);
+            this.ready = false;
+            done();
           }
         },
         (xhr) => {
           if (xhr.total > 0) step(0.1 + 0.35 * (xhr.loaded / xhr.total), "Loading character model...");
         },
         (err) => {
-          console.error("FBX load error:", err);
-          reject(err);
+          clearTimeout(timer);
+          console.warn("FBX load error:", err);
+          this.ready = false;
+          done();
         }
       );
     });

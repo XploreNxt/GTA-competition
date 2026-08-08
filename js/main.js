@@ -159,6 +159,7 @@ const Game = {
   state: "menu", // "menu" | "playing" | "paused"
 
   _els: {},
+  _loadingFinished: false,
   _dayTime: 0.35, // 0..1 (0=midnight, 0.25=sunrise, 0.5=noon, 0.75=sunset)
   _daySpeed: 0.008, // full cycle per ~125 seconds
 
@@ -212,10 +213,7 @@ const Game = {
     this._createOcean();
     this._createPostFX();
 
-    this._createWorld().then(() => {
-      this.clock.stop();
-      this._loadingScreen.classList.add("hidden");
-    }, (e) => {
+    this._createWorld().catch((e) => {
       console.error("World creation failed:", e);
       this._setLoading(100, "Failed to load world");
     });
@@ -278,47 +276,63 @@ const Game = {
 
 // Phase 1 world: city, traffic, player.
   async _createWorld() {
-    this._setLoading(10, "Loading building models...");
-    await new Promise((resolve, reject) => {
-      City.init(this.scene, resolve);
-      setTimeout(() => reject(new Error("City load timeout")), 30000);
-    });
+    // Global safety: force game to start after 15 seconds no matter what
+    const safetyTimer = setTimeout(() => {
+      console.warn("Global loading safety timeout — forcing game start");
+      this._finishLoading();
+    }, 15000);
 
-    this._setLoading(40, "Loading car models...");
-    await Vehicle.init(this.scene);
-    Vehicle.spawnTraffic(15);
-    Vehicle.spawnParked(20);
+    try {
+      this._setLoading(10, "Loading building models...");
+      await new Promise((resolve) => {
+        try { City.init(this.scene, resolve); } catch (e) { resolve(); }
+      });
 
-    this._setLoading(50, "Loading character models...");
-    if (Characters.load) {
-      try {
-        await Characters.load((p, tip) => this._setLoading(50 + p * 0.3, tip));
-      } catch (e) {
-        console.warn("Character models failed to load, using fallback:", e);
-        Characters.ready = false;
+      this._setLoading(40, "Loading car models...");
+      await Vehicle.init(this.scene);
+      Vehicle.spawnTraffic(15);
+      Vehicle.spawnParked(20);
+
+      this._setLoading(50, "Loading character models...");
+      if (Characters.load) {
+        try {
+          await Characters.load((p, tip) => this._setLoading(50 + p * 0.3, tip));
+        } catch (e) {
+          console.warn("Character models failed to load, using fallback:", e);
+          Characters.ready = false;
+        }
       }
+
+      this._setLoading(80, "Populating the city...");
+      Peds.init(this.scene);
+      Peds.spawn(15);
+
+      Police.init(this.scene);
+      Mission.init(this.scene);
+      Particles.init(this.scene);
+      Weather.init(this.scene);
+
+      Player.spawn(0, 0);
+      if (Player.person) {
+        this.scene.add(Player.person);
+      }
+
+      HUD.setMoney(1500);
+      HUD.setMission("Vice City");
+    } catch (e) {
+      console.error("World creation error:", e);
     }
 
-    this._setLoading(80, "Populating the city...");
-    Peds.init(this.scene);
-    Peds.spawn(15);
+    clearTimeout(safetyTimer);
+    this._finishLoading();
+  },
 
-    Police.init(this.scene);
-    Mission.init(this.scene);
-    Particles.init(this.scene);
-    Weather.init(this.scene);
-
-    Player.spawn(0, 0); // center intersection, guaranteed on road
-    if (Player.person) {
-      this.scene.add(Player.person);
-      console.log("Player added to scene at", Player.person.position.x, Player.person.position.z);
-    } else {
-      console.error("Failed to create player!");
-    }
-
-    HUD.setMoney(1500);
-    HUD.setMission("Vice City");
+  _finishLoading() {
+    if (this._loadingFinished) return;
+    this._loadingFinished = true;
     this._setLoading(100, "Ready");
+    this.clock.stop();
+    this._loadingScreen.classList.add("hidden");
   },
 
   _createSky() {
